@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>notmiketrading</title>
+<meta name="description" content="Futures day trader. Every account in one place.">
+<meta name="theme-color" content="#0B0F14">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230B0F14'/%3E%3Cpath d='M8 22V10l8 8 8-8v12' stroke='%232DD4BF' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+<!-- A link-in-bio page is opened from a phone, once, over a cellular connection, by someone who is
+     already half-distracted. So: one file, no framework, no analytics, and the only external
+     request is the typeface - which has a system stack behind it, so a failed font load costs
+     nothing but the look. -->
+
+<meta property="og:type" content="profile">
+<meta property="og:title" content="notmiketrading">
+<meta property="og:description" content="Futures day trader. Every account in one place.">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@700;800&display=swap" rel="stylesheet">
+
+<style>
+  /* Killzonda's own tokens, so the two read as one operation. */
+  :root{
+    --bg:#0B0F14;
+    --surface:#151C27;
+    --surface-hi:#1C2534;
+    --border:rgba(255,255,255,0.08);
+    --border-hi:rgba(45,212,191,0.45);
+    --text:#E8ECF3;
+    --text-dim:#9AA7BD;
+    --accent:#2DD4BF;
+    --accent-soft:rgba(45,212,191,0.12);
+    --r:14px;
+    --ease:cubic-bezier(0.2,0,0,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100svh;
+    display:flex;
+    justify-content:center;
+    /* viewport-fit plus these keeps the last link clear of the iPhone home indicator. */
+    padding:calc(40px + env(safe-area-inset-top)) 20px calc(40px + env(safe-area-inset-bottom));
+    position:relative;
+    overflow-x:hidden;
+  }
+  /* The brand's two glows, well under the text and never in the way of a tap. */
+  body::before, body::after{content:'';position:fixed;border-radius:50%;pointer-events:none;z-index:0;}
+  body::before{
+    top:-280px;left:50%;transform:translateX(-50%);width:720px;height:720px;
+    background:radial-gradient(circle, rgba(45,212,191,0.20) 0%, rgba(45,212,191,0.06) 45%, rgba(45,212,191,0) 70%);
+  }
+  body::after{
+    bottom:-340px;right:-200px;width:620px;height:620px;
+    background:radial-gradient(circle, rgba(96,165,250,0.12) 0%, rgba(45,212,191,0.04) 50%, rgba(45,212,191,0) 75%);
+  }
+
+  main{position:relative;z-index:1;width:100%;max-width:460px;display:flex;flex-direction:column;}
+
+  /* ---- who ---- */
+  .top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:34px;}
+  .mark{
+    width:76px;height:76px;border-radius:22px;
+    background:linear-gradient(145deg, var(--surface-hi), var(--surface));
+    border:1px solid var(--border);
+    display:grid;place-items:center;
+    box-shadow:0 10px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .mark svg{width:38px;height:38px;display:block;}
+  h1{
+    font-family:'Inter Tight',Inter,sans-serif;font-weight:800;font-size:27px;letter-spacing:-0.02em;line-height:1.15;
+  }
+  .bio{font-size:15px;line-height:1.5;color:var(--text-dim);max-width:330px;}
+  .status{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:11.5px;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:var(--accent);
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px var(--accent-soft);}
+
+  /* ---- the links ---- */
+  .links{display:flex;flex-direction:column;gap:11px;}
+  .link{
+    display:flex;align-items:center;gap:15px;
+    min-height:62px;padding:0 18px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    color:var(--text);
+    text-decoration:none;
+    font-size:15.5px;font-weight:600;
+    transition:background 180ms var(--ease), border-color 180ms var(--ease), transform 180ms var(--ease);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .link:hover{background:var(--surface-hi);border-color:var(--border-hi);transform:translateY(-2px);}
+  .link:active{transform:translateY(0) scale(0.99);}
+  .link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+  .ico{
+    flex:0 0 auto;width:38px;height:38px;border-radius:11px;
+    background:var(--bg);border:1px solid var(--border);
+    display:grid;place-items:center;color:var(--accent);
+  }
+  .ico svg{width:19px;height:19px;fill:currentColor;display:block;}
+  .label{flex:1 1 auto;min-width:0;}
+  /* Direct children only: the offer row puts inline pills inside both of these. */
+  .label > b{display:block;font-weight:600;}
+  .label > span{display:block;font-size:12.5px;font-weight:500;color:var(--text-dim);margin-top:3px;}
+  .chev{flex:0 0 auto;color:var(--text-dim);transition:transform 180ms var(--ease), color 180ms var(--ease);}
+  .link:hover .chev{color:var(--accent);transform:translateX(3px);}
+  .chev svg{width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* The one row with an offer on it. Tinted rather than loud: it still has to sit in a list of
+     five others without turning the page into an advert. */
+  .link.is-offer{
+    background:linear-gradient(180deg, rgba(45,212,191,0.10), rgba(45,212,191,0.04));
+    border-color:rgba(45,212,191,0.34);
+  }
+  .link.is-offer:hover{background:linear-gradient(180deg, rgba(45,212,191,0.16), rgba(45,212,191,0.07));}
+  .link.is-offer .ico{background:var(--accent-soft);border-color:rgba(45,212,191,0.30);}
+  .tag{
+    display:inline-block !important;margin-left:7px;vertical-align:1.5px;
+    font-size:10px;font-weight:800;letter-spacing:0.09em;
+    color:#04201C;background:var(--accent);
+    padding:3px 7px;border-radius:999px;
+  }
+  .code{
+    display:inline-block !important;font-weight:800;color:var(--accent);letter-spacing:0.08em;
+    background:var(--accent-soft);border:1px solid rgba(45,212,191,0.28);
+    padding:1px 6px;border-radius:5px;
+  }
+
+  footer{margin-top:34px;text-align:center;font-size:12px;color:var(--text-dim);}
+  footer a{color:var(--text-dim);text-decoration:none;border-bottom:1px solid var(--border);}
+  footer a:hover{color:var(--accent);border-color:var(--border-hi);}
+
+  /* Someone who asked for less motion gets none of it. */
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;animation:none !important;}
+    .link:hover{transform:none;}
+  }
+  @media (max-width:380px){
+    h1{font-size:24px;}
+    .link{min-height:58px;padding:0 15px;gap:13px;}
+    .ico{width:35px;height:35px;}
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none"><path d="M6 23V9l10 10 10-10v14" stroke="#2DD4BF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1>notmiketrading</h1>
+    <p class="bio">Futures day trader. Posting the process, the losses included.</p>
+    <span class="status"><span class="dot" aria-hidden="true"></span> Every account, one place</span>
+  </header>
+
+  <!-- ==========================================================================
+       CHANGING THIS PAGE
+
+       Easiest way, from anything including a phone:
+         github.com -> this repo -> index.html -> the pencil icon -> edit ->
+         "Commit changes". It is live in under a minute. Hard refresh if you still
+         see the old one.
+
+       Each link below is one self-contained block. To change where a link goes,
+       edit the href="..." on its first line and nothing else.
+
+       To add a link, copy a whole block from <a class="link"> to </a>, paste it
+       where you want it in the order, then change three things: the href, the
+       text inside <b>, and the text inside the <span> under it. Leave the icon
+       alone unless you have an SVG path for the new one; a wrong icon is worse
+       than a repeated one.
+
+       To remove a link, delete its whole block, <a ...> through </a>.
+
+       The offer row is the one with class="link is-offer". Its code lives in
+       <span class="code">NMT</span> and the badge in <span class="tag">. If the
+       discount ever changes, those two and the Stripe coupon have to agree.
+       ========================================================================== -->
+  <nav class="links" aria-label="My accounts">
+
+    <a class="link" href="https://discord.gg/rHJGAMBU" target="_blank" rel="noopener noreferrer me">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.3 5.4A16.5 16.5 0 0 0 15.2 4l-.3.6a12 12 0 0 1 3.5 1.2 11 11 0 0 0-8.9 0A12 12 0 0 1 13 4.6L12.8 4a16.5 16.5 0 0 0-4.1 1.4C5.3 10.3 4.4 15 4.8 19.6a16.7 16.7 0 0 0 5 2.5l.9-1.6a10.8 10.8 0 0 1-1.7-.8l.4-.3a11.9 11.9 0 0 0 9.2 0l.4.3a10.8 10.8 0 0 1-1.7.8l.9 1.6a16.7 16.7 0 0 0 5-2.5c.5-5.3-.8-10-3.9-14.2ZM9.7 16.8c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm4.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg></span>
+      <span class="label"><b>Discord</b><span>The trading room</span></span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+    </a>
+
+    <a class="link" href="https://www.instagram.com/notmiketrading/" target="_blank" rel="noopener noreferrer me">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4A5.8 5.8 0 0 1 16.2 22H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.6-3.7a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z"/></svg></span>
+      <span class="label"><b>Instagram</b><span>Daily recaps</span></span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+    </a>
+
+    <a class="link" href="https://x.com/notmiketrading" target="_blank" rel="noopener noreferrer me">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17.53 3h3.2l-7 8 8.23 10h-6.44l-5.05-6.6L4.6 21H1.4l7.49-8.56L1 3h6.6l4.57 6.04L17.53 3Zm-1.12 16.1h1.77L7.68 4.8H5.78l10.63 14.3Z"/></svg></span>
+      <span class="label"><b>X</b><span>Live thoughts and charts</span></span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+    </a>
+
+    <a class="link" href="https://www.youtube.com/@notmiketrading" target="_blank" rel="noopener noreferrer me">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M23 12s0-3.2-.4-4.7a2.9 2.9 0 0 0-2-2.1C18.6 4.7 12 4.7 12 4.7s-6.6 0-8.6.5a2.9 2.9 0 0 0-2 2.1C1 8.8 1 12 1 12s0 3.2.4 4.7c.23.86.9 1.53 1.76 1.76 1.9.54 8.84.54 8.84.54s6.6 0 8.6-.5a2.9 2.9 0 0 0 2-2.1c.4-1.5.4-4.4.4-4.4ZM9.8 15.3V8.7l6 3.3-6 3.3Z"/></svg></span>
+      <span class="label"><b>YouTube</b><span>Longer breakdowns</span></span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+    </a>
+
+    <a class="link" href="https://www.tiktok.com/@notmiketrading" target="_blank" rel="noopener noreferrer me">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.6 2h-3.1v13.1a2.6 2.6 0 1 1-2.2-2.57V9.4a5.7 5.7 0 1 0 5.3 5.68V8.6a7.1 7.1 0 0 0 4.1 1.3V6.8a4.1 4.1 0 0 1-4.1-4.1V2Z"/></svg></span>
+      <span class="label"><b>TikTok</b><span>Clips</span></span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+    </a>
+
+    <a class="link is-offer" href="https://killzonda.com/?ref=nmt" target="_blank" rel="noopener noreferrer">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v16.5A1.5 1.5 0 0 0 4.5 21H21v-2H5V3H3Zm15.3 3.3-4.6 4.6-2.6-2.6L7 12.4l1.4 1.4 3.7-3.7 2.6 2.6 6-6-1.4-1.4Z"/></svg></span>
+      <span class="label"><b>Killzonda<span class="tag">40% OFF</span></b><span>My futures journal &middot; code <span class="code">NMT</span> for 3 months</span></span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+    </a>
+
+  </nav>
+
+  <footer>
+    <p>&copy; <span id="y">2026</span> notmiketrading</p>
+  </footer>
+</main>
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>
