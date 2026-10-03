@@ -1,1 +1,7 @@
 serve.ps1
+
+# Working files for the logo. This repo is public and serves the site, so
+# anything committed here is published at notmiketrading.com.
+logo-options.html
+ref-view.html
+ref.png
