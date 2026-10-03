@@ -6,7 +6,8 @@
 <title>notmiketrading</title>
 <meta name="description" content="Futures day trader. Every account in one place.">
 <meta name="theme-color" content="#0B0F14">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23151C27'/%3E%3Cg transform='translate(8 34) scale(0.318)' fill='none' stroke='%232DD4BF' stroke-width='27' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Cpath d='M11 100V0l72 100V0l45 86 46-86v100'/%3E%3Cpath d='M163 13h90M216 0v100'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <!-- A link-in-bio page is opened from a phone, once, over a cellular connection, by someone who is
      already half-distracted. So: one file, no framework, no analytics, and the only external
@@ -71,14 +72,13 @@
      container is a thin band with dead space above and below it. */
   /* A square tile holding the wide mark, at the largest size that still breathes:
      the mark is 74% of the tile width, the same ratio as the option this came from. */
+  /* The artwork brings its own background, so the tile only supplies the radius and the shadow. */
   .mark{
-    width:96px;height:96px;border-radius:26px;
-    background:linear-gradient(145deg, var(--surface-hi), var(--surface));
+    width:96px;height:96px;border-radius:26px;overflow:hidden;
     border:1px solid var(--border);
-    display:grid;place-items:center;
     box-shadow:0 10px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
   }
-  .mark svg{width:71px;height:auto;display:block;}
+  .mark img{width:100%;height:100%;display:block;}
   h1{
     font-family:'Inter Tight',Inter,sans-serif;font-weight:800;font-size:27px;letter-spacing:-0.02em;line-height:1.15;
   }
@@ -160,9 +160,7 @@
 <main>
   <header class="top">
     <div class="mark" aria-hidden="true">
-      <svg viewBox="0 0 264 100" fill="none" stroke="#2DD4BF" stroke-width="22" stroke-linecap="butt" stroke-linejoin="miter">
-        <path d="M11 100V0l72 100V0l45 86 46-86v100"/><path d="M163 11h90M216 0v100"/>
-      </svg>
+      <img src="nmt-mark.png" width="288" height="288" alt="">
     </div>
     <h1>notmiketrading</h1>
     <p class="bio">Futures day trader. Posting the process, the losses included.</p>
