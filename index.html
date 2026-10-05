@@ -29,7 +29,7 @@
     --bg:#0B0F14;
     --surface:#151C27;
     --surface-hi:#1C2534;
-    --border:rgba(255,255,255,0.08);
+    --border:rgba(255,255,255,0.13);
     --border-hi:rgba(45,212,191,0.45);
     --text:#E8ECF3;
     --text-dim:#9AA7BD;
@@ -67,7 +67,7 @@
   main{position:relative;z-index:1;width:100%;max-width:460px;display:flex;flex-direction:column;}
 
   /* ---- who ---- */
-  .top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:34px;}
+  .top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:15px;margin-bottom:40px;}
   /* The mark is 2.6:1, so this is a plate rather than a square tile. A wide lockup in a square
      container is a thin band with dead space above and below it. */
   /* A square tile holding the wide mark, at the largest size that still breathes:
@@ -75,14 +75,14 @@
   /* The artwork brings its own background, so the tile only supplies the radius and the shadow. */
   .mark{
     width:96px;height:96px;border-radius:26px;overflow:hidden;
-    border:1px solid var(--border);
-    box-shadow:0 10px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+    border:1px solid rgba(45,212,191,0.22);
+    box-shadow:0 14px 36px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
   }
   .mark img{width:100%;height:100%;display:block;}
   h1{
-    font-family:'Inter Tight',Inter,sans-serif;font-weight:800;font-size:27px;letter-spacing:-0.02em;line-height:1.15;
+    font-family:'Inter Tight',Inter,sans-serif;font-weight:800;font-size:31px;letter-spacing:-0.025em;line-height:1.1;
   }
-  .bio{font-size:15px;line-height:1.5;color:var(--text-dim);max-width:330px;}
+  .bio{font-size:15.5px;line-height:1.55;color:var(--text-dim);max-width:324px;text-wrap:balance;}
   .status{
     display:inline-flex;align-items:center;gap:8px;
     font-size:11.5px;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:var(--accent);
@@ -90,32 +90,46 @@
   .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px var(--accent-soft);}
 
   /* ---- the links ---- */
-  .links{display:flex;flex-direction:column;gap:11px;}
+  .links{display:flex;flex-direction:column;gap:12px;}
   .link{
-    display:flex;align-items:center;gap:15px;
-    min-height:62px;padding:0 18px;
-    background:var(--surface);
+    display:flex;align-items:center;gap:16px;
+    min-height:70px;padding:0 18px;
+    background:linear-gradient(180deg, var(--surface-hi), var(--surface));
     border:1px solid var(--border);
     border-radius:var(--r);
+    box-shadow:0 2px 12px rgba(0,0,0,0.38);
     color:var(--text);
     text-decoration:none;
-    font-size:15.5px;font-weight:600;
-    transition:background 180ms var(--ease), border-color 180ms var(--ease), transform 180ms var(--ease);
+    transition:background 180ms var(--ease), border-color 180ms var(--ease), transform 180ms var(--ease), box-shadow 180ms var(--ease);
     -webkit-tap-highlight-color:transparent;
   }
-  .link:hover{background:var(--surface-hi);border-color:var(--border-hi);transform:translateY(-2px);}
+  .link:hover{
+    background:linear-gradient(180deg, rgba(45,212,191,0.10), rgba(45,212,191,0.02)), linear-gradient(180deg, var(--surface-hi), var(--surface));
+    border-color:var(--border-hi);
+    transform:translateY(-2px);
+    box-shadow:0 12px 28px rgba(0,0,0,0.5);
+  }
   .link:active{transform:translateY(0) scale(0.99);}
   .link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
   .ico{
-    flex:0 0 auto;width:38px;height:38px;border-radius:11px;
-    background:var(--bg);border:1px solid var(--border);
+    flex:0 0 auto;width:46px;height:46px;border-radius:13px;
+    background:linear-gradient(180deg, rgba(45,212,191,0.17), rgba(45,212,191,0.05));
+    border:1px solid rgba(45,212,191,0.30);
     display:grid;place-items:center;color:var(--accent);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.07);
+    transition:transform 200ms var(--ease), background 200ms var(--ease), border-color 200ms var(--ease), box-shadow 200ms var(--ease);
   }
-  .ico svg{width:19px;height:19px;fill:currentColor;display:block;}
+  .ico svg{width:23px;height:23px;fill:currentColor;display:block;}
+  .link:hover .ico{
+    transform:scale(1.08);
+    background:linear-gradient(180deg, rgba(45,212,191,0.30), rgba(45,212,191,0.12));
+    border-color:rgba(45,212,191,0.58);
+    box-shadow:0 0 0 4px rgba(45,212,191,0.10), 0 8px 20px rgba(45,212,191,0.22), inset 0 1px 0 rgba(255,255,255,0.10);
+  }
   .label{flex:1 1 auto;min-width:0;}
   /* Direct children only: the offer row puts inline pills inside both of these. */
-  .label > b{display:block;font-weight:600;}
-  .label > span{display:block;font-size:12.5px;font-weight:500;color:var(--text-dim);margin-top:3px;}
+  .label > b{display:block;font-size:16.5px;font-weight:600;letter-spacing:-0.012em;line-height:1.25;}
+  .label > span{display:block;font-size:12.5px;font-weight:500;color:var(--text-dim);margin-top:4px;line-height:1.35;}
   .chev{flex:0 0 auto;color:var(--text-dim);transition:transform 180ms var(--ease), color 180ms var(--ease);}
   .link:hover .chev{color:var(--accent);transform:translateX(3px);}
   .chev svg{width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
@@ -123,11 +137,12 @@
   /* The one row with an offer on it. Tinted rather than loud: it still has to sit in a list of
      five others without turning the page into an advert. */
   .link.is-offer{
-    background:linear-gradient(180deg, rgba(45,212,191,0.10), rgba(45,212,191,0.04));
-    border-color:rgba(45,212,191,0.34);
+    background:linear-gradient(180deg, rgba(45,212,191,0.20), rgba(45,212,191,0.07)), linear-gradient(180deg, var(--surface-hi), var(--surface));
+    border-color:rgba(45,212,191,0.46);
   }
-  .link.is-offer:hover{background:linear-gradient(180deg, rgba(45,212,191,0.16), rgba(45,212,191,0.07));}
-  .link.is-offer .ico{background:var(--accent-soft);border-color:rgba(45,212,191,0.30);}
+  .link.is-offer:hover{
+    background:linear-gradient(180deg, rgba(45,212,191,0.28), rgba(45,212,191,0.11)), linear-gradient(180deg, var(--surface-hi), var(--surface));
+  }
   .tag{
     display:inline-block !important;margin-left:7px;vertical-align:1.5px;
     font-size:10px;font-weight:800;letter-spacing:0.09em;
@@ -140,7 +155,7 @@
     padding:1px 6px;border-radius:5px;
   }
 
-  footer{margin-top:34px;text-align:center;font-size:12px;color:var(--text-dim);}
+  footer{margin-top:38px;text-align:center;font-size:12px;color:var(--text-dim);}
   footer a{color:var(--text-dim);text-decoration:none;border-bottom:1px solid var(--border);}
   footer a:hover{color:var(--accent);border-color:var(--border-hi);}
 
@@ -148,11 +163,14 @@
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important;animation:none !important;}
     .link:hover{transform:none;}
+    .link:hover .ico{transform:none;}
   }
   @media (max-width:380px){
-    h1{font-size:24px;}
-    .link{min-height:58px;padding:0 15px;gap:13px;}
-    .ico{width:35px;height:35px;}
+    h1{font-size:27px;}
+    .link{min-height:66px;padding:0 15px;gap:14px;}
+    .ico{width:43px;height:43px;border-radius:12px;}
+    .ico svg{width:21px;height:21px;}
+    .label > b{font-size:15.5px;}
   }
 </style>
 </head>
