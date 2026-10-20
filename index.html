@@ -112,8 +112,8 @@
      Top gets more than the bottom because that is where the render's bloom is. */
   .mark{
     position:relative;width:214px;height:104px;overflow:hidden;
-    -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 16%, #000 90%, transparent 100%);
-    mask-image:linear-gradient(to bottom, transparent 0%, #000 16%, #000 90%, transparent 100%);
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 12%, #000 90%, transparent 100%);
+    mask-image:linear-gradient(to bottom, transparent 0%, #000 12%, #000 90%, transparent 100%);
   }
   .mark picture{display:contents;}
   /* 288 scaled by 0.925 so the 232-wide crop lands at 214, then offset to the crop's origin. */
@@ -338,15 +338,28 @@
          bevels and throw away the letters, which is why the first two attempts came out as
          loose strokes with no NMT in them. Opening at 20 keeps the whole form, so the faces
          stay pale, the bevels carry the ember, and the mark reads as struck into the paper.
-         The plate sits at 5-18, just under the ramp, so it still disappears.
-         The top of the ramp is 97 rather than something tighter because of the render’s own bloom,
-         which sits between the faces and the bevels in luminance: faces low, bloom middle,
-         bevels high. No threshold separates it, so a ramp that saturates early turns the bloom
-         into a solid ember cloud above the letters. Ending at 97 keeps it translucent. The mark
-         gets its presence from size instead. -->
-    <feComponentTransfer in="key" result="shaped">
+         The plate sits at 5-18, just under the ramp, so it still disappears. -->
+    <feComponentTransfer in="key" result="tone">
       <feFuncA type="linear" slope="3.400" intercept="-0.293"/>
     </feComponentTransfer>
+
+    <!-- The haze this used to leave above the letters was the render's own bloom, and no
+         threshold removes it: in luminance it sits between the letter faces and the bevels, so
+         faces low, bloom middle, bevels high. Anything that keeps the faces keeps the bloom.
+         What separates them is not brightness but distance. The bloom is spilt light lying on
+         the plate away from the strokes; the faces are always within a few pixels of a bevel.
+         So: threshold hard at about 95 to get the bevels alone, dilate that skeleton by 13 and
+         soften it, and use it as a stencil. 13 is measured against the two failure modes: below
+         about 10 the faces fall outside the stencil and the letters break into loose strokes,
+         above about 18 the stencil reaches far enough to let the bloom back in. Tone passes only where it is near a stroke. The
+         bloom is 30 or more pixels clear of the topmost bevel, so it is simply not admitted. -->
+    <feComponentTransfer in="key" result="bevels">
+      <feFuncA type="linear" slope="12" intercept="-4.5"/>
+    </feComponentTransfer>
+    <feMorphology in="bevels" operator="dilate" radius="13" result="near"/>
+    <feGaussianBlur in="near" stdDeviation="3" result="stencil"/>
+    <feComposite in="tone" in2="stencil" operator="in" result="shaped"/>
+
     <feFlood flood-color="#B5471F" result="ink"/>
     <feComposite in="ink" in2="shaped" operator="in"/>
   </filter>
