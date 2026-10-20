@@ -277,10 +277,19 @@
   .offer{border-top:1px solid rgba(45,212,191,0.18);}
   .offer-1{font-size:14.5px;font-weight:600;line-height:1.35;letter-spacing:-0.01em;}
   .offer-2{font-size:12.5px;font-weight:500;color:var(--dim);line-height:1.4;margin-top:3px;}
+  /* On a narrow phone this line wraps, so it has to wrap between the two sentences rather than
+     inside the price, which otherwise orphans "for 3 months." on its own line. */
+  .nb{white-space:nowrap;}
   .chip{
     display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:0.1em;
     color:#04201C;background:var(--cy);padding:3px 6px;border-radius:5px;
     vertical-align:1.5px;margin-right:7px;
+  }
+  /* The code is the mechanism, so it is set apart from the sentence around it. */
+  .code{
+    display:inline-block;font-weight:800;color:var(--cy);letter-spacing:0.07em;
+    background:rgba(45,212,191,0.12);border:1px solid rgba(45,212,191,0.3);
+    padding:0 5px;border-radius:4px;
   }
 
   .foot{font-size:12px;color:#6B7A92;}
@@ -351,8 +360,10 @@
          The cascade needs no bookkeeping: the script staggers whatever
          data-reveal elements it finds, in page order.
 
-         The Killzonda card is the one with class="feat". Its two offer lines and
-         killzonda.com's actual pricing have to agree.
+         The Killzonda card is the one with class="feat". Three things have to
+         agree: its two offer lines, killzonda.com's actual pricing, and the
+         Stripe coupon behind the code in <span class="code">. Right now that
+         reads 40% off the $19.99 founding price, so $11.99/mo for 3 months.
          ========================================================================== -->
     <nav class="mt-9" aria-label="My accounts">
       <ul class="flex flex-col gap-3" id="links">
@@ -431,7 +442,7 @@
             </span>
             <span class="offer mt-3.5 block pt-3">
               <span class="offer-1 block"><span class="chip">FREE</span>Start free. 10 trades, no card.</span>
-              <span class="offer-2 block">or 40% off premium, $19.99/mo founding price.</span>
+              <span class="offer-2 block">or 40% off premium with code <span class="code">NMT</span>. <span class="nb">$11.99/mo for 3 months.</span></span>
             </span>
           </a>
         </li>
