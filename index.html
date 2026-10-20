@@ -19,9 +19,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
 
-<!-- Tailwind carries the layout; the identity (gradients, glow, sweep, shimmer) is hand-written
-     below it, because none of that is a utility class. Version pinned so a CDN release can
-     never change the page under us. -->
+<!-- Tailwind carries the layout; the identity lives in the stylesheet below it, because none of
+     that is a utility class. Version pinned so a CDN release can never change the page. -->
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script>
   tailwind.config = {
@@ -38,9 +37,9 @@
 </script>
 
 <style>
-  /* The same colourway as the dark page, moved onto paper. Teal has to do two different jobs
-     here, so it is split: a deep one that passes contrast as text, a mid one for borders and
-     glyphs, and the bright brand cyan kept for glows and fills, where contrast does not apply. */
+  /* Palette unchanged. Teal does two jobs: a deep one that passes contrast as text, a mid one
+     for borders and glyphs, and the bright brand cyan kept for washes, where contrast does not
+     apply. */
   :root{
     color-scheme:light;
     --paper:#F6F9FC;
@@ -51,13 +50,25 @@
     --teal-ink:#0F766E;
     --teal:#0D9488;
     --cyan:#2DD4BF;
-    --ease:cubic-bezier(0.2,0,0,1);
-    --ease-soft:cubic-bezier(0.4,0,0.2,1);
+
+    /* One spacing scale, every gap on the page a multiple of 4. Nothing is eyeballed. */
+    --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s13:52px; --s16:64px;
+
+    /* The icon column. Everything in a card starts at one of two x positions: the icon edge, or
+       this far in. The featured card's extra text hangs off the same line. */
+    --ico:56px;
+    --gap:16px;
+    --col:calc(var(--ico) + var(--gap));
+    --pad:18px;
+
+    --row:88px;             /* every button is exactly this tall */
+    --ease:cubic-bezier(0.4,0,0.2,1);
+    --ease-out:cubic-bezier(0.33,1,0.68,1);   /* lands, never overshoots */
   }
 
   /* ---------- the room ---------- */
   .page{
-    background:linear-gradient(172deg, #FBFDFE 0%, #F3F8FB 44%, #EDF7F6 100%);
+    background:linear-gradient(172deg, #FCFEFE 0%, #F4FAFB 40%, #EFF8F7 100%);
     background-color:var(--paper);
     color:var(--ink);
     min-height:100svh;
@@ -65,28 +76,17 @@
     -webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;
   }
-  /* Every background layer is a fixed, pointer-transparent sheet under the content, so none of
-     it can ever intercept a tap on a phone.
-     None of them is named bg-something, deliberately: Tailwind generates a .bg-<colour> utility
-     for every colour in the theme, it is injected after this stylesheet, and a hand-written
-     .bg-teal loses its background-color to a flat swatch of the real thing. */
+  /* Fixed, pointer-transparent sheets under the content, so none of it can intercept a tap.
+     None is named bg-something: Tailwind generates a .bg-<colour> utility for every colour in
+     the theme and injects it after this stylesheet, so a hand-written .bg-teal would lose its
+     background-color to a flat swatch of the real thing. */
   .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
   .bg i{position:absolute;display:block;}
-  /* Not a generic grid: wide time columns over close price rows, which is the proportion a
-     chart actually has. Faded out before it reaches the links. */
-  .chart-grid{
-    inset:0;
-    background-image:
-      linear-gradient(to right, rgba(14,40,66,0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(14,40,66,0.055) 1px, transparent 1px);
-    background-size:92px 42px;
-    -webkit-mask-image:radial-gradient(ellipse 92% 46% at 50% 0%, #000 0%, rgba(0,0,0,0.4) 58%, transparent 82%);
-    mask-image:radial-gradient(ellipse 92% 46% at 50% 0%, #000 0%, rgba(0,0,0,0.4) 58%, transparent 82%);
-  }
-  /* The price line. It draws itself once and then stays put: motion that announces the page
-     rather than decorating it forever. */
+  /* The price line is the one background element that earns its place: it is the whole theme of
+     the page. It draws itself once on load and then holds still. The chart grid that used to sit
+     behind it is gone, because two faint layers competing is noise, not depth. */
   .chart-line{
-    top:0;left:0;right:0;height:min(52vh,460px);width:100%;
+    top:0;left:0;right:0;height:min(50vh,440px);width:100%;
     -webkit-mask-image:linear-gradient(to bottom, #000 55%, transparent 100%);
     mask-image:linear-gradient(to bottom, #000 55%, transparent 100%);
   }
@@ -95,16 +95,14 @@
     fill:none;stroke:rgba(13,148,136,0.30);stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round;
     stroke-dasharray:1;stroke-dashoffset:1;
-    animation:draw 2.4s var(--ease-soft) 250ms forwards;
+    animation:draw 2600ms var(--ease) 200ms forwards;
   }
-  .sparkfill{opacity:0;animation:fadein 1.6s var(--ease-soft) 900ms forwards;}
+  .sparkfill{opacity:0;animation:fadein 1600ms var(--ease) 900ms forwards;}
   @keyframes draw{to{stroke-dashoffset:0;}}
   @keyframes fadein{to{opacity:1;}}
 
-  /* On paper a radial wash is a visible disc, however soft the stops are: the eye finds the
-     circle's edge against white in a way it never does against near-black. So the colour comes
-     down the page linearly instead, and it is weak enough that the cards stay the brightest
-     thing on screen. */
+  /* Colour comes down the page linearly. On paper a radial wash reads as a visible disc however
+     soft its stops are. */
   .wash-top{
     top:0;left:0;right:0;height:680px;
     background:linear-gradient(180deg, rgba(45,212,191,0.17) 0%, rgba(45,212,191,0.07) 34%, rgba(45,212,191,0.015) 68%, rgba(45,212,191,0) 100%);
@@ -117,35 +115,32 @@
   .shell{position:relative;z-index:1;}
 
   /* ---------- hero ---------- */
-  /* The mark brings its own dark background, which on paper becomes the one solid anchor the
-     eye lands on first. It only needs a ring and a shadow to sit down properly. */
   .mark{
-    width:78px;height:78px;border-radius:22px;overflow:hidden;
+    width:76px;height:76px;border-radius:20px;overflow:hidden;
     border:1px solid rgba(14,40,66,0.10);
-    box-shadow:0 14px 32px rgba(10,30,50,0.18), 0 2px 6px rgba(10,30,50,0.08);
+    box-shadow:0 12px 28px rgba(10,30,50,0.16), 0 2px 5px rgba(10,30,50,0.07);
   }
   .mark img{width:100%;height:100%;display:block;}
 
   .wordwrap{position:relative;display:inline-block;}
-  /* The bloom sits behind the letters, never on them, and breathes on opacity only. */
+  /* A static wash, not a pulse. It is part of the palette rather than an animation. */
   .wordwrap::before{
-    content:'';position:absolute;left:50%;top:50%;width:124%;height:220%;
+    content:'';position:absolute;left:50%;top:50%;width:122%;height:210%;
     transform:translate(-50%,-50%);
-    background:radial-gradient(ellipse at center, rgba(45,212,191,0.16) 0%, rgba(45,212,191,0.05) 44%, rgba(45,212,191,0) 72%);
+    background:radial-gradient(ellipse at center, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.05) 44%, rgba(45,212,191,0) 72%);
     pointer-events:none;z-index:-1;
-    animation:breathe 7s var(--ease-soft) infinite;
   }
   .wordmark{
     font-family:'Inter Tight',Inter,sans-serif;font-weight:800;
-    font-size:clamp(33px, 10.4vw, 52px);
-    letter-spacing:-0.042em;line-height:1.02;
+    font-size:clamp(32px, 9.8vw, 49px);
+    letter-spacing:-0.042em;line-height:1.04;
     color:var(--ink);
   }
-  /* The light sweep, now a run of brand colour through near-black type.
+  /* One slow sweep on load, then nothing. It runs once and holds on the last frame.
      The letters are painted by the gradient, so the gradient has to cover them at every frame:
      background-position stays inside 0%..100%, where an over-sized image always spans the
-     element. Park it outside that range and the uncovered letters go transparent. The flat
-     ends of the ramp mean both ends of the cycle look identical, so the loop never snaps. */
+     element. Park it outside that range and the uncovered letters go transparent. Both ends of
+     the ramp are flat, so the start of the run is invisible and the end settles even. */
   @supports ((-webkit-background-clip:text) or (background-clip:text)){
     .wordmark{
       background-image:linear-gradient(100deg,
@@ -153,205 +148,131 @@
       background-size:260% 100%;background-repeat:no-repeat;
       -webkit-background-clip:text;background-clip:text;
       color:transparent;
-      animation:sweep 8s var(--ease-soft) 900ms infinite;
+      animation:sweep 2800ms var(--ease) 450ms 1 forwards;
     }
   }
   @keyframes sweep{
-    0%{background-position:100% 0;}
-    38%{background-position:0% 0;}
-    100%{background-position:0% 0;}
-  }
-  @keyframes breathe{
-    0%,100%{opacity:0.5;transform:translate(-50%,-50%) scale(0.97);}
-    50%{opacity:1;transform:translate(-50%,-50%) scale(1.04);}
+    from{background-position:100% 0;}
+    to{background-position:0% 0;}
   }
 
-  .sub{font-size:15.5px;line-height:1.55;color:var(--muted);max-width:30ch;text-wrap:balance;}
+  .sub{font-size:15px;font-weight:400;line-height:1.6;color:var(--muted);max-width:31ch;text-wrap:balance;}
 
-  /* ---------- the tape ---------- */
-  .tape{
-    position:relative;overflow:hidden;
-    border:1px solid rgba(13,148,136,0.22);border-radius:999px;
-    background:linear-gradient(180deg, #FFFFFF, #F2FBFA);
-    box-shadow:0 1px 2px rgba(10,30,50,0.05), 0 8px 22px rgba(13,148,136,0.10);
+  /* The status line, reduced to what it says. The pill, the pulsing dot, the running light and
+     the candle meter were all chrome around six words. */
+  .status{
+    display:inline-flex;align-items:center;gap:9px;
+    font-size:10.5px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--teal-ink);
   }
-  /* A light running the length of the bar: the ticker-tape read, done with one transform. */
-  .tape::after{
-    content:'';position:absolute;top:0;left:0;width:42%;height:1px;
-    background:linear-gradient(90deg, transparent, rgba(13,148,136,0.8), transparent);
-    animation:tape 4.6s linear infinite;
-  }
-  @keyframes tape{0%{transform:translateX(-110%);}100%{transform:translateX(345%);}}
-  .tape-txt{
-    font-size:10.5px;font-weight:700;letter-spacing:0.17em;text-transform:uppercase;
-    color:var(--teal-ink);white-space:nowrap;
-  }
-  .pulse{
-    position:relative;width:7px;height:7px;border-radius:50%;background:var(--teal);
-    box-shadow:0 0 0 3px rgba(13,148,136,0.14);flex:0 0 auto;
-  }
-  .pulse::after{
-    content:'';position:absolute;inset:0;border-radius:50%;border:1px solid var(--teal);
-    animation:ping 2s var(--ease) infinite;
-  }
-  @keyframes ping{
-    0%{transform:scale(1);opacity:0.8;}
-    75%,100%{transform:scale(3.4);opacity:0;}
-  }
-  .rule{width:1px;height:13px;background:rgba(13,148,136,0.26);flex:0 0 auto;}
-  /* Three candles: a wick the full height, a body that moves inside it. Enough of the motif to
-     read as a chart at 14px, and it reports activity without pretending to report data. */
-  .candles{display:flex;align-items:center;gap:6px;height:14px;flex:0 0 auto;}
-  .candles i{position:relative;width:1px;height:100%;background:rgba(13,148,136,0.45);display:block;}
-  .candles i::after{
-    content:'';position:absolute;left:-1.5px;width:4px;border-radius:1px;background:var(--teal);
-    top:32%;height:38%;
-    animation:candle 2.1s var(--ease-soft) infinite;
-  }
-  .candles i:nth-child(2)::after{animation-delay:0.35s;}
-  .candles i:nth-child(3)::after{animation-delay:0.7s;}
-  @keyframes candle{
-    0%,100%{top:34%;height:34%;}
-    50%{top:12%;height:66%;}
+  .status::before{
+    content:'';width:6px;height:6px;border-radius:50%;background:var(--teal);flex:0 0 auto;
   }
 
-  /* ---------- cards ---------- */
-  /* Entrance lives on the wrapper and hover lives on the card, so the two transforms never
-     fight over the same element. */
-  .reveal{opacity:0;transform:translateY(18px);}
-  .reveal.is-in{opacity:1;transform:none;transition:opacity 620ms var(--ease), transform 620ms var(--ease);}
+  /* ---------- buttons ---------- */
+  /* One smooth staggered fade-up, 80ms apart, set by the script in page order. Entrance lives on
+     the wrapper and hover on the card, so the two transforms never fight over one element. */
+  .reveal{opacity:0;transform:translateY(14px);}
+  .reveal.is-in{
+    opacity:1;transform:none;
+    transition:opacity 560ms var(--ease-out), transform 560ms var(--ease-out);
+  }
 
+  /* Fixed height rather than padding: the five standard buttons are identical boxes whatever
+     their text does. Icon, title and chevron land on the same three x positions in every one. */
   .card{
-    position:relative;isolation:isolate;overflow:hidden;
-    border:1px solid var(--line);border-radius:18px;
+    display:flex;align-items:center;gap:var(--gap);
+    height:var(--row);padding:0 var(--pad);
+    border:1px solid var(--line);border-radius:16px;
     background:var(--card);
-    box-shadow:0 1px 2px rgba(10,30,50,0.06), 0 10px 26px rgba(10,30,50,0.08);
+    box-shadow:0 1px 2px rgba(10,30,50,0.05), 0 8px 20px rgba(10,30,50,0.06);
     color:var(--ink);text-decoration:none;
-    transition:transform 240ms var(--ease), border-color 240ms var(--ease), box-shadow 240ms var(--ease);
+    transition:transform 220ms var(--ease), box-shadow 220ms var(--ease);
     -webkit-tap-highlight-color:transparent;
   }
   .card:focus-visible{outline:2px solid var(--teal);outline-offset:3px;}
 
-  /* The cursor-tracked wash. Desktop only, and it costs two custom properties. */
-  .wash{
-    position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;opacity:0;
-    background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%), rgba(45,212,191,0.20), transparent 68%);
-    transition:opacity 260ms var(--ease);
-  }
-  /* The shimmer: one skewed strip crossing the surface, transform-only. On paper it has to be
-     a band of colour, since a band of white would be invisible. */
-  .sheen{position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;overflow:hidden;}
-  .sheen i{
-    position:absolute;top:-60%;bottom:-60%;left:0;width:45%;display:block;opacity:0;
-    background:linear-gradient(100deg, transparent, rgba(45,212,191,0.10) 40%, rgba(45,212,191,0.26) 50%, rgba(45,212,191,0.10) 60%, transparent);
-    transform:translateX(-170%) skewX(-18deg);
-  }
-  @keyframes shimmer{
-    0%{transform:translateX(-170%) skewX(-18deg);opacity:0;}
-    18%{opacity:1;}
-    100%{transform:translateX(330%) skewX(-18deg);opacity:0;}
-  }
-
+  /* One pixel up, a soft bloom under it. Nothing else moves. */
   @media (hover:hover) and (pointer:fine){
     .card:hover{
-      transform:translateY(-3px) scale(1.012);
-      border-color:var(--teal);
-      box-shadow:0 2px 4px rgba(10,30,50,0.05), 0 18px 38px rgba(13,148,136,0.20), 0 0 0 1px rgba(13,148,136,0.18);
+      transform:translateY(-1px);
+      box-shadow:0 1px 2px rgba(10,30,50,0.05), 0 14px 30px rgba(13,148,136,0.16);
     }
-    .card:hover .wash{opacity:1;}
-    .card:hover .sheen i{animation:shimmer 900ms var(--ease-soft) 1;}
-    /* The tile fills in with solid brand colour. It is the clearest thing a light card can do. */
-    .card:hover .ico{
-      transform:scale(1.07);color:#FFFFFF;border-color:var(--teal);
-      background:linear-gradient(180deg, #0D9488, #0F766E);
-      box-shadow:0 8px 20px rgba(13,148,136,0.34);
-    }
-    .card:hover .chev{color:var(--teal);transform:translateX(4px);}
   }
-  /* A tap gets the same brightening, which is the whole point of doing it on a phone. */
-  .card:active{transform:scale(0.985);border-color:var(--teal);}
-  .card:active .sheen i{animation:shimmer 700ms var(--ease-soft) 1;}
-  .card:active .wash{opacity:1;}
+  /* Touch has no hover, so the press itself is the feedback. */
+  .card:active{box-shadow:0 1px 2px rgba(10,30,50,0.05), 0 6px 16px rgba(13,148,136,0.18);}
 
   .ico{
-    flex:0 0 auto;width:56px;height:56px;border-radius:16px;
+    flex:0 0 auto;width:var(--ico);height:var(--ico);border-radius:14px;
     background:linear-gradient(180deg, rgba(45,212,191,0.28), rgba(13,148,136,0.11));
     border:1px solid rgba(13,148,136,0.30);
     display:grid;place-items:center;color:var(--teal);
-    transition:transform 260ms var(--ease), background 260ms var(--ease), border-color 260ms var(--ease), box-shadow 260ms var(--ease), color 260ms var(--ease);
   }
-  .ico svg{width:28px;height:28px;fill:currentColor;display:block;}
-  .ttl{font-size:17px;font-weight:600;letter-spacing:-0.015em;line-height:1.2;color:var(--ink);}
-  .dsc{font-size:12.5px;font-weight:500;color:var(--muted);line-height:1.35;margin-top:4px;}
-  .chev{flex:0 0 auto;color:#A3B2C4;transition:transform 240ms var(--ease), color 240ms var(--ease);}
-  .chev svg{width:17px;height:17px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+  .ico svg{width:27px;height:27px;fill:currentColor;display:block;}
+  .lbl{flex:1 1 auto;min-width:0;}
+  .ttl{display:block;font-size:16px;font-weight:600;letter-spacing:-0.012em;line-height:1.25;color:var(--ink);}
+  .dsc{display:block;font-size:12.5px;font-weight:500;line-height:1.35;color:var(--muted);margin-top:3px;}
+  .chev{flex:0 0 auto;color:#A3B2C4;display:block;}
+  .chev svg{width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
 
-  /* ---------- the featured one ---------- */
-  /* A gradient border, which is the one thing a flat 1px line cannot do: one padding-box layer
-     for the surface, one border-box layer for the edge. */
+  /* ---------- the one elevated card ---------- */
+  /* Same button, plus a block underneath. Its top row is exactly --row tall, so it keeps the
+     rhythm of the stack it sits on top of. */
   .feat{
+    display:block;height:auto;padding:0 var(--pad) var(--pad);
     border:1px solid transparent;
     background:
       linear-gradient(180deg, #EFFCFA 0%, #FFFFFF 72%) padding-box,
       linear-gradient(145deg, #2DD4BF 0%, #60A5FA 52%, #2DD4BF 100%) border-box;
-    box-shadow:0 2px 4px rgba(10,30,50,0.05), 0 16px 36px rgba(13,148,136,0.18);
+    box-shadow:0 1px 2px rgba(10,30,50,0.05), 0 14px 32px rgba(13,148,136,0.16);
   }
   @media (hover:hover) and (pointer:fine){
-    .feat:hover{box-shadow:0 2px 4px rgba(10,30,50,0.05), 0 24px 50px rgba(13,148,136,0.28);}
-    .feat:hover .ico{background:linear-gradient(180deg, #0F766E, #115E59);}
+    .feat:hover{box-shadow:0 1px 2px rgba(10,30,50,0.05), 0 18px 40px rgba(13,148,136,0.24);}
   }
+  .feat .row{display:flex;align-items:center;gap:var(--gap);height:var(--row);}
   .feat .ico{
     background:linear-gradient(180deg, #0D9488, #0F766E);
     border-color:rgba(15,118,110,0.45);color:#FFFFFF;
-    box-shadow:0 8px 20px rgba(13,148,136,0.28);
   }
-  .eyebrow{
-    display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;
-    color:var(--teal-ink);background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.26);
-    padding:3px 7px;border-radius:999px;vertical-align:2px;margin-left:8px;
+  /* Hung off the icon column, so its first character sits under the K of Killzonda. */
+  .offer{
+    display:block;                 /* a span, so without this the indent never applies */
+    margin-left:var(--col);padding-top:14px;
+    border-top:1px solid rgba(13,148,136,0.20);
   }
-  .offer{border-top:1px solid rgba(13,148,136,0.20);}
-  .offer-1{font-size:14.5px;font-weight:600;line-height:1.35;letter-spacing:-0.01em;color:var(--ink);}
-  .offer-2{font-size:12.5px;font-weight:500;color:var(--muted);line-height:1.4;margin-top:3px;}
-  /* On a narrow phone this line wraps, so it has to wrap between the two sentences rather than
-     inside the price, which otherwise orphans "for 3 months." on its own line. */
-  .nb{white-space:nowrap;}
-  .chip{
-    display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:0.1em;
-    color:#FFFFFF;background:linear-gradient(180deg, #0F766E, #115E59);
-    padding:3px 6px;border-radius:5px;
-    vertical-align:1.5px;margin-right:7px;
-  }
+  .offer-1{display:block;font-size:14.5px;font-weight:600;letter-spacing:-0.01em;line-height:1.35;color:var(--ink);}
+  .offer-2{display:block;font-size:12.5px;font-weight:500;line-height:1.45;color:var(--muted);margin-top:4px;}
   /* The code is the mechanism, so it is set apart from the sentence around it. */
   .code{
-    display:inline-block;font-weight:800;color:var(--teal-ink);letter-spacing:0.07em;
+    display:inline-block;font-weight:700;color:var(--teal-ink);letter-spacing:0.06em;
     background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.3);
     padding:0 5px;border-radius:4px;
   }
+  /* On a narrow phone this line wraps, so it wraps between the two sentences rather than inside
+     the price, which otherwise orphans "for 3 months." on its own line. */
+  .nb{white-space:nowrap;}
 
   .foot{font-size:12px;color:var(--muted);}
 
-  /* Someone who asked for less motion gets a still page: no sweep, no tape, no cascade, and
-     the price line already drawn rather than drawing. */
+  /* Less motion means none: no cascade, no sweep, the chart already drawn. */
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation:none !important;transition:none !important;}
     .reveal{opacity:1 !important;transform:none !important;}
-    .card:hover,.card:active{transform:none;}
-    .wordwrap::before{opacity:0.75;}
+    .card:hover{transform:none;}
     .spark{stroke-dashoffset:0;}
     .sparkfill{opacity:1;}
   }
-  /* The path is stretched to the viewport, so on a phone the same 1200 units are squeezed into
-     a third of the width and the line gets dense enough to compete with the wordmark. Same
-     motif, held further back. */
+  /* The path is stretched to the viewport, so on a phone the same 1200 units are squeezed into a
+     third of the width. Same motif, held further back. */
   @media (max-width:640px){
     .chart-line{opacity:0.6;}
   }
   @media (max-width:380px){
-    .ico{width:50px;height:50px;border-radius:14px;}
+    :root{--ico:50px;--gap:14px;--pad:15px;--row:82px;}
+    .ico{border-radius:13px;}
     .ico svg{width:25px;height:25px;}
-    .ttl{font-size:16px;}
-    .tape-txt{font-size:9.5px;letter-spacing:0.14em;}
+    .ttl{font-size:15.5px;}
+    .status{font-size:9.5px;letter-spacing:0.14em;}
   }
 </style>
 </head>
@@ -361,10 +282,9 @@
 <div class="bg" aria-hidden="true">
   <i class="wash-top"></i>
   <i class="wash-foot"></i>
-  <i class="chart-grid"></i>
   <i class="chart-line">
-    <!-- An uptrend with real pullbacks in it, stretched to whatever width the device is. It is
-         a motif, not a claim: no axis, no numbers, nothing that could be read as a track record. -->
+    <!-- An uptrend with real pullbacks in it, stretched to whatever width the device is. It is a
+         motif, not a claim: no axis, no numbers, nothing that could be read as a track record. -->
     <svg viewBox="0 0 1200 420" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
@@ -381,8 +301,9 @@
   </i>
 </div>
 
-<div class="shell flex justify-center px-5" style="padding-top:calc(3rem + env(safe-area-inset-top));padding-bottom:calc(2.5rem + env(safe-area-inset-bottom));">
-  <main class="w-full max-w-[500px]">
+<div class="shell flex justify-center px-5"
+     style="padding-top:calc(var(--s16) + env(safe-area-inset-top));padding-bottom:calc(var(--s13) + env(safe-area-inset-bottom));">
+  <main class="w-full max-w-[480px]">
 
     <!-- ================= hero ================= -->
     <header class="flex flex-col items-center text-center">
@@ -393,18 +314,13 @@
         </picture>
       </div>
 
-      <div class="wordwrap reveal mt-6" data-reveal>
+      <div class="wordwrap reveal" data-reveal style="margin-top:var(--s8)">
         <h1 class="wordmark">notmiketrading</h1>
       </div>
 
-      <p class="sub reveal mt-4" data-reveal>Futures day trader. Posting the process, the losses included.</p>
+      <p class="sub reveal" data-reveal style="margin-top:var(--s4)">Futures day trader. Posting the process, the losses included.</p>
 
-      <div class="tape reveal mt-7 inline-flex items-center gap-2.5 py-2 pl-3.5 pr-3.5" data-reveal>
-        <span class="pulse"></span>
-        <span class="tape-txt">Every account, one place</span>
-        <span class="rule"></span>
-        <span class="candles" aria-hidden="true"><i></i><i></i><i></i></span>
-      </div>
+      <p class="status reveal" data-reveal style="margin-top:var(--s6)">Every account, one place</p>
     </header>
 
     <!-- ==========================================================================
@@ -415,104 +331,102 @@
 
          Each link is one block, <li> through </li>. To change where one goes,
          edit the href on the <a> and nothing else. To reorder, move the whole
-         <li>. To add one, copy a whole <li>, paste it where you want it, then
-         change the href, the text in .ttl, and the text in .dsc. Leave the icon
-         alone unless you have an SVG path for the new one.
+         <li>. To add one, copy a whole standard <li>, paste it where you want
+         it in the order, then change the href, the text in .ttl and the text in
+         .dsc. Leave the icon alone unless you have an SVG path for the new one.
+
+         Do not give a standard button its own height or padding. They are all
+         one box, --row tall, set once in :root, and that is what keeps the stack
+         even.
 
          The cascade needs no bookkeeping: the script staggers whatever
-         data-reveal elements it finds, in page order.
+         data-reveal elements it finds, in page order, 80ms apart.
 
-         The Killzonda card is the one with class="feat". Three things have to
-         agree: its two offer lines, killzonda.com's actual pricing, and the
-         Stripe coupon behind the code in <span class="code">. Right now that
-         reads 40% off the $19.99 founding price, so $11.99/mo for 3 months.
+         Killzonda is the card with class="feat". Three things have to agree: its
+         two offer lines, killzonda.com's actual pricing, and the Stripe coupon
+         behind the code in <span class="code">. Right now that reads 40% off the
+         $19.99 founding price, so $11.99/mo for 3 months.
          ========================================================================== -->
-    <nav class="mt-9" aria-label="My accounts">
-      <ul class="flex flex-col gap-3" id="links">
+    <nav aria-label="My accounts" style="margin-top:var(--s13)">
+      <ul class="flex flex-col" style="gap:var(--s3)" id="links">
 
+        <!-- the one elevated card -->
         <li class="reveal" data-reveal>
-          <a class="card flex items-center gap-4 px-4 py-4" href="https://discord.gg/rHJGAMBU" target="_blank" rel="noopener noreferrer me">
-            <span class="wash"></span><span class="sheen"><i></i></span>
-            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.3 5.4A16.5 16.5 0 0 0 15.2 4l-.3.6a12 12 0 0 1 3.5 1.2 11 11 0 0 0-8.9 0A12 12 0 0 1 13 4.6L12.8 4a16.5 16.5 0 0 0-4.1 1.4C5.3 10.3 4.4 15 4.8 19.6a16.7 16.7 0 0 0 5 2.5l.9-1.6a10.8 10.8 0 0 1-1.7-.8l.4-.3a11.9 11.9 0 0 0 9.2 0l.4.3a10.8 10.8 0 0 1-1.7.8l.9 1.6a16.7 16.7 0 0 0 5-2.5c.5-5.3-.8-10-3.9-14.2ZM9.7 16.8c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm4.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg></span>
-            <span class="min-w-0 flex-1">
-              <span class="ttl block">Discord</span>
-              <span class="dsc block">The Long Game</span>
-            </span>
-            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-          </a>
-        </li>
-
-        <li class="reveal" data-reveal>
-          <a class="card flex items-center gap-4 px-4 py-4" href="https://www.instagram.com/notmiketrading/" target="_blank" rel="noopener noreferrer me">
-            <span class="wash"></span><span class="sheen"><i></i></span>
-            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4A5.8 5.8 0 0 1 16.2 22H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.6-3.7a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z"/></svg></span>
-            <span class="min-w-0 flex-1">
-              <span class="ttl block">Instagram</span>
-              <span class="dsc block">Daily recaps</span>
-            </span>
-            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-          </a>
-        </li>
-
-        <li class="reveal" data-reveal>
-          <a class="card flex items-center gap-4 px-4 py-4" href="https://x.com/notmiketrading" target="_blank" rel="noopener noreferrer me">
-            <span class="wash"></span><span class="sheen"><i></i></span>
-            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.53 3h3.2l-7 8 8.23 10h-6.44l-5.05-6.6L4.6 21H1.4l7.49-8.56L1 3h6.6l4.57 6.04L17.53 3Zm-1.12 16.1h1.77L7.68 4.8H5.78l10.63 14.3Z"/></svg></span>
-            <span class="min-w-0 flex-1">
-              <span class="ttl block">X</span>
-              <span class="dsc block">Live thoughts and charts</span>
-            </span>
-            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-          </a>
-        </li>
-
-        <li class="reveal" data-reveal>
-          <a class="card flex items-center gap-4 px-4 py-4" href="https://www.youtube.com/@notmiketrading" target="_blank" rel="noopener noreferrer me">
-            <span class="wash"></span><span class="sheen"><i></i></span>
-            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 12s0-3.2-.4-4.7a2.9 2.9 0 0 0-2-2.1C18.6 4.7 12 4.7 12 4.7s-6.6 0-8.6.5a2.9 2.9 0 0 0-2 2.1C1 8.8 1 12 1 12s0 3.2.4 4.7c.23.86.9 1.53 1.76 1.76 1.9.54 8.84.54 8.84.54s6.6 0 8.6-.5a2.9 2.9 0 0 0 2-2.1c.4-1.5.4-4.4.4-4.4ZM9.8 15.3V8.7l6 3.3-6 3.3Z"/></svg></span>
-            <span class="min-w-0 flex-1">
-              <span class="ttl block">YouTube</span>
-              <span class="dsc block">Longer breakdowns</span>
-            </span>
-            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-          </a>
-        </li>
-
-        <li class="reveal" data-reveal>
-          <a class="card flex items-center gap-4 px-4 py-4" href="https://www.tiktok.com/@notmiketrading" target="_blank" rel="noopener noreferrer me">
-            <span class="wash"></span><span class="sheen"><i></i></span>
-            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.6 2h-3.1v13.1a2.6 2.6 0 1 1-2.2-2.57V9.4a5.7 5.7 0 1 0 5.3 5.68V8.6a7.1 7.1 0 0 0 4.1 1.3V6.8a4.1 4.1 0 0 1-4.1-4.1V2Z"/></svg></span>
-            <span class="min-w-0 flex-1">
-              <span class="ttl block">TikTok</span>
-              <span class="dsc block">Clips</span>
-            </span>
-            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-          </a>
-        </li>
-
-        <!-- the featured one -->
-        <li class="reveal" data-reveal>
-          <a class="card feat block px-4 pb-3.5 pt-4" href="https://killzonda.com/?ref=nmt" target="_blank" rel="noopener noreferrer">
-            <span class="wash"></span><span class="sheen"><i></i></span>
-            <span class="flex items-center gap-4">
+          <a class="card feat" href="https://killzonda.com/?ref=nmt" target="_blank" rel="noopener noreferrer">
+            <span class="row">
               <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16.5A1.5 1.5 0 0 0 4.5 21H21v-2H5V3H3Zm15.3 3.3-4.6 4.6-2.6-2.6L7 12.4l1.4 1.4 3.7-3.7 2.6 2.6 6-6-1.4-1.4Z"/></svg></span>
-              <span class="min-w-0 flex-1">
-                <span class="ttl block">Killzonda<span class="eyebrow">Founding</span></span>
-                <span class="dsc block">My futures journal</span>
+              <span class="lbl">
+                <span class="ttl">Killzonda</span>
+                <span class="dsc">My futures journal</span>
               </span>
               <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
             </span>
-            <span class="offer mt-3.5 block pt-3">
-              <span class="offer-1 block"><span class="chip">FREE</span>Start free. 10 trades, no card.</span>
-              <span class="offer-2 block">or 40% off premium with code <span class="code">NMT</span>. <span class="nb">$11.99/mo for 3 months.</span></span>
+            <span class="offer">
+              <span class="offer-1">Start free, no card necessary.</span>
+              <span class="offer-2">or 40% off premium with code <span class="code">NMT</span>. <span class="nb">$11.99/mo for 3 months.</span></span>
             </span>
+          </a>
+        </li>
+
+        <li class="reveal" data-reveal>
+          <a class="card" href="https://discord.gg/rHJGAMBU" target="_blank" rel="noopener noreferrer me">
+            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.3 5.4A16.5 16.5 0 0 0 15.2 4l-.3.6a12 12 0 0 1 3.5 1.2 11 11 0 0 0-8.9 0A12 12 0 0 1 13 4.6L12.8 4a16.5 16.5 0 0 0-4.1 1.4C5.3 10.3 4.4 15 4.8 19.6a16.7 16.7 0 0 0 5 2.5l.9-1.6a10.8 10.8 0 0 1-1.7-.8l.4-.3a11.9 11.9 0 0 0 9.2 0l.4.3a10.8 10.8 0 0 1-1.7.8l.9 1.6a16.7 16.7 0 0 0 5-2.5c.5-5.3-.8-10-3.9-14.2ZM9.7 16.8c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm4.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg></span>
+            <span class="lbl">
+              <span class="ttl">Discord</span>
+              <span class="dsc">The Long Game</span>
+            </span>
+            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+          </a>
+        </li>
+
+        <li class="reveal" data-reveal>
+          <a class="card" href="https://www.instagram.com/notmiketrading/" target="_blank" rel="noopener noreferrer me">
+            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4A5.8 5.8 0 0 1 16.2 22H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.6-3.7a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z"/></svg></span>
+            <span class="lbl">
+              <span class="ttl">Instagram</span>
+              <span class="dsc">Daily recaps</span>
+            </span>
+            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+          </a>
+        </li>
+
+        <li class="reveal" data-reveal>
+          <a class="card" href="https://x.com/notmiketrading" target="_blank" rel="noopener noreferrer me">
+            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.53 3h3.2l-7 8 8.23 10h-6.44l-5.05-6.6L4.6 21H1.4l7.49-8.56L1 3h6.6l4.57 6.04L17.53 3Zm-1.12 16.1h1.77L7.68 4.8H5.78l10.63 14.3Z"/></svg></span>
+            <span class="lbl">
+              <span class="ttl">X</span>
+              <span class="dsc">Live thoughts and charts</span>
+            </span>
+            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+          </a>
+        </li>
+
+        <li class="reveal" data-reveal>
+          <a class="card" href="https://www.youtube.com/@notmiketrading" target="_blank" rel="noopener noreferrer me">
+            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 12s0-3.2-.4-4.7a2.9 2.9 0 0 0-2-2.1C18.6 4.7 12 4.7 12 4.7s-6.6 0-8.6.5a2.9 2.9 0 0 0-2 2.1C1 8.8 1 12 1 12s0 3.2.4 4.7c.23.86.9 1.53 1.76 1.76 1.9.54 8.84.54 8.84.54s6.6 0 8.6-.5a2.9 2.9 0 0 0 2-2.1c.4-1.5.4-4.4.4-4.4ZM9.8 15.3V8.7l6 3.3-6 3.3Z"/></svg></span>
+            <span class="lbl">
+              <span class="ttl">YouTube</span>
+              <span class="dsc">Longer breakdowns</span>
+            </span>
+            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+          </a>
+        </li>
+
+        <li class="reveal" data-reveal>
+          <a class="card" href="https://www.tiktok.com/@notmiketrading" target="_blank" rel="noopener noreferrer me">
+            <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.6 2h-3.1v13.1a2.6 2.6 0 1 1-2.2-2.57V9.4a5.7 5.7 0 1 0 5.3 5.68V8.6a7.1 7.1 0 0 0 4.1 1.3V6.8a4.1 4.1 0 0 1-4.1-4.1V2Z"/></svg></span>
+            <span class="lbl">
+              <span class="ttl">TikTok</span>
+              <span class="dsc">Clips</span>
+            </span>
+            <span class="chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
           </a>
         </li>
 
       </ul>
     </nav>
 
-    <footer class="foot reveal mt-9 text-center" data-reveal>
+    <footer class="foot reveal text-center" data-reveal style="margin-top:var(--s13)">
       <p>&copy; <span id="y">2026</span> notmiketrading</p>
     </footer>
 
@@ -524,30 +438,17 @@
   var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var items = document.querySelectorAll('[data-reveal]');
 
-  // The cascade. One class and one delay per element, so the browser animates it all off the
-  // compositor and the script is done before the first frame lands.
+  // One cascade, 80ms apart, in page order. A class and a delay per element, so the browser
+  // animates it off the compositor and the script is finished before the first frame lands.
   if (still) {
     for (var i = 0; i < items.length; i++) items[i].classList.add('is-in');
   } else {
     requestAnimationFrame(function(){
       for (var i = 0; i < items.length; i++) {
-        items[i].style.transitionDelay = (40 + i * 68) + 'ms';
+        items[i].style.transitionDelay = (i * 80) + 'ms';
         items[i].classList.add('is-in');
       }
     });
-  }
-
-  // Cursor-tracked wash, delegated to the list and only where there is a real pointer.
-  var fine = window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches;
-  var list = document.getElementById('links');
-  if (fine && !still && list) {
-    list.addEventListener('pointermove', function(e){
-      var card = e.target.closest && e.target.closest('.card');
-      if (!card) return;
-      var r = card.getBoundingClientRect();
-      card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-      card.style.setProperty('--my', (e.clientY - r.top) + 'px');
-    }, { passive: true });
   }
 
   document.getElementById('y').textContent = new Date().getFullYear();
