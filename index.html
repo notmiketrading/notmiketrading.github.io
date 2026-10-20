@@ -71,23 +71,17 @@
   img,svg{display:block;}
 
   /* ---------- the paper itself ---------- */
-  /* A price line, engraved rather than drawn: at this opacity it is a watermark in the stock,
-     not a graphic on top of it. It is the only ornament on the page, and it is the page's own
-     subject. It draws once on load and then holds still. */
-  .leaf{
-    position:fixed;top:0;left:0;right:0;height:min(46vh,400px);
-    z-index:0;pointer-events:none;
-    -webkit-mask-image:linear-gradient(to bottom,#000 50%,transparent 100%);
-    mask-image:linear-gradient(to bottom,#000 50%,transparent 100%);
+  /* Ledger rules, not a chart. The price line that was here had to be stretched to the viewport
+     to span it, which distorted every angle in it and made the whole thing read as a wobble
+     rather than a chart. Ruled stock is what this page is set on anyway, it is financial paper
+     by default, and horizontal rules have no focal point that can be wrong. */
+  .ledger{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:repeating-linear-gradient(
+      to bottom,
+      transparent 0, transparent 37px,
+      rgba(23,22,20,0.028) 37px, rgba(23,22,20,0.028) 38px);
   }
-  .leaf svg{width:100%;height:100%;}
-  .engrave{
-    fill:none;stroke:rgba(23,22,20,0.17);stroke-width:1.25;
-    stroke-linecap:round;stroke-linejoin:round;
-    stroke-dasharray:1;stroke-dashoffset:1;
-    animation:engrave 2600ms var(--ease) 260ms forwards;
-  }
-  @keyframes engrave{to{stroke-dashoffset:0;}}
 
   /* Grain. Bone paper without tooth photographs as flat grey; this is what makes it read warm.
      One tiled raster, composited once. */
@@ -107,18 +101,25 @@
   /* ---------- masthead ---------- */
   .head{display:flex;flex-direction:column;align-items:center;text-align:center;}
 
-  .monogram{
-    width:72px;height:72px;border-radius:50%;
-    border:1px solid var(--rule);background:var(--paper-2);
-    display:grid;place-items:center;
-    box-shadow:0 1px 2px rgba(23,22,20,0.04);
+  /* A struck seal rather than three letters in a circle: type running the ring, three candles at
+     the centre. The middle one is ember and down, because the losses are the actual proposition.
+     It settles into position once on load and then holds. */
+  .seal{width:96px;height:96px;}
+  .seal-disc{fill:var(--paper-2);stroke:var(--rule);stroke-width:1;}
+  .seal-inner{fill:none;stroke:var(--rule-soft);stroke-width:1;}
+  .seal-type{
+    font-family:var(--mono);font-size:7.4px;font-weight:500;
+    fill:var(--ink-3);letter-spacing:0.04em;
   }
-  .monogram span{
-    font-family:var(--serif);font-size:23px;line-height:1;
-    letter-spacing:0.06em;color:var(--ink);
-    /* the serif sits high in its box; this puts it on the optical centre */
-    transform:translateY(1px);
+  .seal-ring{
+    transform-origin:50% 50%;
+    animation:settle 1900ms var(--ease-out) 240ms backwards;
   }
+  @keyframes settle{from{transform:rotate(-26deg);}to{transform:rotate(0deg);}}
+  .wick{stroke:var(--ink);stroke-width:1.1;stroke-linecap:round;}
+  .body{fill:var(--ink);}
+  .wick-down{stroke:var(--ember);stroke-width:1.1;stroke-linecap:round;}
+  .body-down{fill:var(--ember);}
 
   .wordmark{
     margin-top:30px;
@@ -148,21 +149,25 @@
     letter-spacing:0.004em;line-height:1.3;color:var(--ink);
   }
 
-  /* ---------- the one block of ink ---------- */
+  /* ---------- the featured block ---------- */
+  /* It was a slab: full padding, a big bloom and a 40px shadow, against five rows with no weight
+     at all, so it read as the page with five footnotes. It is smaller and quieter now, and the
+     index marks below carry ink of their own, which closes the gap from both ends. */
   .feature{
-    display:block;margin-top:52px;position:relative;overflow:hidden;
-    border-radius:18px;padding:24px;
+    display:block;margin-top:44px;position:relative;overflow:hidden;
+    border-radius:16px;padding:19px 20px 20px;
+    border:1px solid rgba(226,112,63,0.22);
     background:
-      radial-gradient(140% 100% at 86% -10%, rgba(226,112,63,0.34) 0%, rgba(226,112,63,0.08) 44%, rgba(226,112,63,0) 70%),
+      radial-gradient(130% 95% at 88% -12%, rgba(226,112,63,0.22) 0%, rgba(226,112,63,0.05) 42%, rgba(226,112,63,0) 68%),
       #171614;
     color:var(--paper);text-decoration:none;
-    box-shadow:0 1px 2px rgba(23,22,20,0.10), 0 18px 40px rgba(23,22,20,0.17);
+    box-shadow:0 1px 2px rgba(23,22,20,0.07), 0 9px 22px rgba(23,22,20,0.11);
     transition:transform 260ms var(--ease), box-shadow 260ms var(--ease);
   }
   @media (hover:hover) and (pointer:fine){
     .feature:hover{
       transform:translateY(-2px);
-      box-shadow:0 1px 2px rgba(23,22,20,0.10), 0 26px 56px rgba(23,22,20,0.24);
+      box-shadow:0 1px 2px rgba(23,22,20,0.07), 0 16px 34px rgba(23,22,20,0.17);
     }
     .feature:hover .f-arw{transform:translate(3px,-3px);}
   }
@@ -179,8 +184,8 @@
     letter-spacing:0.2em;text-transform:uppercase;color:var(--ember-lit);
   }
   .f-name{
-    display:block;margin-top:9px;font-family:var(--serif);font-weight:400;
-    font-size:30px;line-height:1.05;letter-spacing:-0.008em;color:var(--paper);
+    display:block;margin-top:7px;font-family:var(--serif);font-weight:400;
+    font-size:25px;line-height:1.05;letter-spacing:-0.008em;color:var(--paper);
   }
   .f-arw{
     flex:0 0 auto;color:var(--paper);opacity:0.75;
@@ -188,7 +193,7 @@
   }
   .f-arw svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
 
-  .terms{display:block;margin-top:20px;padding-top:16px;border-top:1px solid rgba(243,239,231,0.16);}
+  .terms{display:block;margin-top:16px;padding-top:14px;border-top:1px solid rgba(243,239,231,0.16);}
   .term-1{display:block;font-size:14.5px;font-weight:500;line-height:1.4;color:var(--paper);}
   .term-2{display:block;margin-top:5px;font-size:12.5px;font-weight:400;line-height:1.5;color:rgba(243,239,231,0.62);}
   /* The code is the mechanism, so it is set apart from the sentence around it. */
@@ -222,7 +227,7 @@
   }
   @media (hover:hover) and (pointer:fine){
     .row:hover{background-color:rgba(23,22,20,0.04);}
-    .row:hover .glyph{background:var(--ink);border-color:var(--ink);color:var(--paper);}
+    .row:hover .glyph{background:var(--ember);border-color:var(--ember);}
     .row:hover .arw{color:var(--ink);transform:translate(2px,-2px);}
   }
   .row:active{background-color:rgba(23,22,20,0.06);}
@@ -232,15 +237,17 @@
     font-family:var(--mono);font-size:10.5px;font-weight:500;
     letter-spacing:0.04em;color:var(--ink-3);
   }
+  /* Filled, not outlined. Five small discs of ink spread the weight the featured block used to
+     hold on its own, and give the accent somewhere to go on hover. */
   .glyph{
     flex:0 0 auto;width:44px;height:44px;border-radius:50%;
-    border:1px solid var(--rule);background:var(--paper-2);
-    display:grid;place-items:center;color:var(--ink);
-    transition:background-color 220ms var(--ease), border-color 220ms var(--ease), color 220ms var(--ease);
+    border:1px solid var(--ink);background:var(--ink);
+    display:grid;place-items:center;color:var(--paper);
+    transition:background-color 220ms var(--ease), border-color 220ms var(--ease);
   }
   .glyph svg{width:20px;height:20px;fill:currentColor;}
   .meta{flex:1 1 auto;min-width:0;}
-  .nm{display:block;font-size:16.5px;font-weight:500;letter-spacing:-0.012em;line-height:1.25;}
+  .nm{display:block;font-size:17px;font-weight:500;letter-spacing:-0.012em;line-height:1.25;}
   .ds{display:block;margin-top:3px;font-size:12.5px;font-weight:400;line-height:1.35;color:var(--ink-3);}
   .arw{
     flex:0 0 auto;color:var(--ink-4);
@@ -292,21 +299,38 @@
 
 <body>
 
-<div class="leaf" aria-hidden="true">
-  <svg viewBox="0 0 1200 400" preserveAspectRatio="none" focusable="false">
-    <!-- An uptrend with real pullbacks in it. A motif, not a claim: no axis, no numbers, nothing
-         that could be read as a track record. -->
-    <path class="engrave" pathLength="1" vector-effect="non-scaling-stroke"
-      d="M0,318 L60,300 L120,326 L180,286 L240,306 L300,254 L360,274 L420,226 L480,250 L540,196 L600,220 L660,172 L720,194 L780,146 L840,168 L900,124 L960,146 L1020,102 L1080,122 L1150,82 L1200,98"/>
-  </svg>
-</div>
+<div class="ledger" aria-hidden="true"></div>
 
 <div class="sheet">
   <main class="col">
 
     <!-- ===================== masthead ===================== -->
     <header class="head">
-      <div class="monogram rise" data-rise aria-hidden="true"><span>NMT</span></div>
+      <div class="rise" data-rise aria-hidden="true">
+        <!-- The ring text is forced to exactly the circumference with textLength, so it closes on
+             itself at any font size instead of being tuned by eye and drifting. -->
+        <svg class="seal" viewBox="0 0 100 100" focusable="false">
+          <defs>
+            <path id="ring" fill="none" d="M 50,14 A 36,36 0 1,1 49.99,14"/>
+          </defs>
+          <circle class="seal-disc" cx="50" cy="50" r="47.5"/>
+          <circle class="seal-inner" cx="50" cy="50" r="30"/>
+          <g class="seal-ring">
+            <text class="seal-type">
+              <textPath href="#ring" startOffset="0" textLength="226.2" lengthAdjust="spacing">NOTMIKETRADING · FUTURES · THE PROCESS ·</textPath>
+            </text>
+          </g>
+          <!-- Two up, one down. -->
+          <g>
+            <line class="wick" x1="40" y1="44" x2="40" y2="63"/>
+            <rect class="body" x="36.6" y="48" width="6.8" height="11" rx="0.8"/>
+            <line class="wick-down" x1="50" y1="39" x2="50" y2="59"/>
+            <rect class="body-down" x="46.6" y="44" width="6.8" height="10" rx="0.8"/>
+            <line class="wick" x1="60" y1="35" x2="60" y2="54"/>
+            <rect class="body" x="56.6" y="38" width="6.8" height="11" rx="0.8"/>
+          </g>
+        </svg>
+      </div>
       <h1 class="wordmark rise" data-rise>notmiketrading</h1>
       <div class="flourish rise" data-rise aria-hidden="true"></div>
       <p class="stand rise" data-rise>Futures day trader. Posting the process, <em>the losses included.</em></p>
