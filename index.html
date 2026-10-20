@@ -101,25 +101,18 @@
   /* ---------- masthead ---------- */
   .head{display:flex;flex-direction:column;align-items:center;text-align:center;}
 
-  /* A struck seal rather than three letters in a circle: type running the ring, three candles at
-     the centre. The middle one is ember and down, because the losses are the actual proposition.
-     It settles into position once on load and then holds. */
-  .seal{width:96px;height:96px;}
-  .seal-disc{fill:var(--paper-2);stroke:var(--rule);stroke-width:1;}
-  .seal-inner{fill:none;stroke:var(--rule-soft);stroke-width:1;}
-  .seal-type{
-    font-family:var(--mono);font-size:7.4px;font-weight:500;
-    fill:var(--ink-3);letter-spacing:0.04em;
+  /* Mike’s own mark, re-hued rather than redrawn. The render is a cyan neon lockup on a
+     near-black plate, opaque at every pixel, so there is nothing to key out and no reason to:
+     neon on dark IS the logo. Only the hue moves. The matrix lives on #ember in the markup. */
+  .mark{
+    width:92px;height:92px;border-radius:24px;overflow:hidden;
+    border:1px solid rgba(23,22,20,0.12);
+    box-shadow:0 10px 26px rgba(23,22,20,0.16), 0 2px 5px rgba(23,22,20,0.07);
   }
-  .seal-ring{
-    transform-origin:50% 50%;
-    animation:settle 1900ms var(--ease-out) 240ms backwards;
-  }
-  @keyframes settle{from{transform:rotate(-26deg);}to{transform:rotate(0deg);}}
-  .wick{stroke:var(--ink);stroke-width:1.1;stroke-linecap:round;}
-  .body{fill:var(--ink);}
-  .wick-down{stroke:var(--ember);stroke-width:1.1;stroke-linecap:round;}
-  .body-down{fill:var(--ember);}
+  .mark picture,.mark img{display:block;width:100%;height:100%;}
+  /* If a browser will not resolve the filter the mark simply arrives in its original cyan, which
+     is off-palette rather than broken. */
+  .mark img{filter:url(#ember);}
 
   .wordmark{
     margin-top:30px;
@@ -313,6 +306,26 @@
 
 <body>
 
+<!-- The mark's re-hue. Not a hue-rotate: that is a linear approximation that turns saturated cyan
+     to mud. This is a channel remap derived from the render's own pixels, which measure [77,223,225]
+     at the neon and [5,8,15] at the plate.
+
+     Cyan carries most of its luminance in G, and ember needs most of its value in R, so a naive
+     swap costs the tube about 40% of its brightness and the letters go dim. G is therefore routed
+     into R at slightly over unity and kept at better than half strength in G, which holds the
+     tube near its original luminance. Measured through this matrix the tube lands at [245,150,70],
+     the hottest cores at [255,171,79], and the plate at [9,6,4]: the same near-black with the blue
+     taken out of it. The 3D work in the render, the bevels and the falloff, is untouched, because
+     nothing here moves a pixel. Only its hue. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <filter id="ember" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values="0.15 1.045 0    0 0
+                                         0    0.55  0.12 0 0
+                                         0    0.12  0.19 0 0
+                                         0    0     0    1 0"/>
+  </filter>
+</svg>
+
 <div class="ledger" aria-hidden="true"></div>
 
 <div class="sheet">
@@ -321,29 +334,12 @@
     <!-- ===================== masthead ===================== -->
     <header class="head">
       <div class="rise" data-rise aria-hidden="true">
-        <!-- The ring text is forced to exactly the circumference with textLength, so it closes on
-             itself at any font size instead of being tuned by eye and drifting. -->
-        <svg class="seal" viewBox="0 0 100 100" focusable="false">
-          <defs>
-            <path id="ring" fill="none" d="M 50,14 A 36,36 0 1,1 49.99,14"/>
-          </defs>
-          <circle class="seal-disc" cx="50" cy="50" r="47.5"/>
-          <circle class="seal-inner" cx="50" cy="50" r="30"/>
-          <g class="seal-ring">
-            <text class="seal-type">
-              <textPath href="#ring" startOffset="0" textLength="226.2" lengthAdjust="spacing">NOTMIKETRADING · FUTURES · THE PROCESS ·</textPath>
-            </text>
-          </g>
-          <!-- Two up, one down. -->
-          <g>
-            <line class="wick" x1="40" y1="44" x2="40" y2="63"/>
-            <rect class="body" x="36.6" y="48" width="6.8" height="11" rx="0.8"/>
-            <line class="wick-down" x1="50" y1="39" x2="50" y2="59"/>
-            <rect class="body-down" x="46.6" y="44" width="6.8" height="10" rx="0.8"/>
-            <line class="wick" x1="60" y1="35" x2="60" y2="54"/>
-            <rect class="body" x="56.6" y="38" width="6.8" height="11" rx="0.8"/>
-          </g>
-        </svg>
+        <div class="mark">
+          <picture>
+            <source srcset="nmt-mark.webp" type="image/webp">
+            <img src="nmt-mark.png" width="288" height="288" alt="notmiketrading" decoding="async">
+          </picture>
+        </div>
       </div>
       <h1 class="wordmark rise" data-rise>notmiketrading</h1>
       <div class="flourish rise" data-rise aria-hidden="true"></div>
