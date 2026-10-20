@@ -104,15 +104,23 @@
   /* Mike’s own mark, re-hued rather than redrawn. The render is a cyan neon lockup on a
      near-black plate, opaque at every pixel, so there is nothing to key out and no reason to:
      neon on dark IS the logo. Only the hue moves. The matrix lives on #ember in the markup. */
+  /* No plate. The lockup occupies x 44-249, y 101-184 of the 288 square and the rest of the
+     canvas is the field the filter removes, so the box is cropped to x 30-262, y 86-198.
+     Leaving the square uncropped would hang 190px of nothing under the logo.
+     The fade is not decoration. A low ramp keeps some of the plate's own lighting gradient, and
+     the top of the crop is the brightest of it, so without this the box ends in a visible line.
+     Top gets more than the bottom because that is where the render's bloom is. */
   .mark{
-    width:92px;height:92px;border-radius:24px;overflow:hidden;
-    border:1px solid rgba(23,22,20,0.12);
-    box-shadow:0 10px 26px rgba(23,22,20,0.16), 0 2px 5px rgba(23,22,20,0.07);
+    position:relative;width:214px;height:104px;overflow:hidden;
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 16%, #000 90%, transparent 100%);
+    mask-image:linear-gradient(to bottom, transparent 0%, #000 16%, #000 90%, transparent 100%);
   }
-  .mark picture,.mark img{display:block;width:100%;height:100%;}
-  /* If a browser will not resolve the filter the mark simply arrives in its original cyan, which
-     is off-palette rather than broken. */
-  .mark img{filter:url(#ember);}
+  .mark picture{display:contents;}
+  /* 288 scaled by 0.925 so the 232-wide crop lands at 214, then offset to the crop's origin. */
+  .mark img{
+    position:absolute;width:266.4px;height:266.4px;left:-27.8px;top:-79.6px;
+    filter:url(#ember);
+  }
 
   .wordmark{
     margin-top:30px;
@@ -318,11 +326,29 @@
      taken out of it. The 3D work in the render, the bevels and the falloff, is untouched, because
      nothing here moves a pixel. Only its hue. -->
 <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
-  <filter id="ember" color-interpolation-filters="sRGB">
-    <feColorMatrix type="matrix" values="0.15 1.045 0    0 0
-                                         0    0.55  0.12 0 0
-                                         0    0.12  0.19 0 0
-                                         0    0     0    1 0"/>
+  <filter id="ember" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+    <!-- Luminance becomes opacity. Keying the plate out and keeping the render's own colour does
+         not work here: the neon is bright, and bright on bone measures about 2:1, so the mark
+         would key out and then disappear. On paper the tonality has to inverrt, brightest to
+         densest, which is what this does. -->
+    <feColorMatrix type="luminanceToAlpha" result="key"/>
+    <!-- The ramp opens at luminance 20 and reaches full at 62, which is far lower than it looks
+         like it should be. The letters in this render are extruded solids lit from above: their
+         faces are DARK and only the bevels are bright. Key at a high threshold and you keep the
+         bevels and throw away the letters, which is why the first two attempts came out as
+         loose strokes with no NMT in them. Opening at 20 keeps the whole form, so the faces
+         stay pale, the bevels carry the ember, and the mark reads as struck into the paper.
+         The plate sits at 5-18, just under the ramp, so it still disappears.
+         The top of the ramp is 97 rather than something tighter because of the render’s own bloom,
+         which sits between the faces and the bevels in luminance: faces low, bloom middle,
+         bevels high. No threshold separates it, so a ramp that saturates early turns the bloom
+         into a solid ember cloud above the letters. Ending at 97 keeps it translucent. The mark
+         gets its presence from size instead. -->
+    <feComponentTransfer in="key" result="shaped">
+      <feFuncA type="linear" slope="3.400" intercept="-0.293"/>
+    </feComponentTransfer>
+    <feFlood flood-color="#B5471F" result="ink"/>
+    <feComposite in="ink" in2="shaped" operator="in"/>
   </filter>
 </svg>
 
