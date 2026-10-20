@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>notmiketrading</title>
 <meta name="description" content="Futures day trader. Posting the process, the losses included.">
-<meta name="theme-color" content="#0B0F14">
+<meta name="theme-color" content="#F6F9FC">
+<meta name="color-scheme" content="light">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
@@ -24,10 +25,9 @@
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script>
   tailwind.config = {
-    corePlugins: { preflight: true },
     theme: {
       extend: {
-        colors: { ink:'#E8ECF3', dim:'#9AA7BD', cy:'#2DD4BF' },
+        colors: { ink:'#0A1A2B', muted:'#5A6B80', teal:'#0D9488' },
         fontFamily: {
           sans: ['Inter','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'],
           tight: ['Inter Tight','Inter','-apple-system','sans-serif']
@@ -38,21 +38,27 @@
 </script>
 
 <style>
+  /* The same colourway as the dark page, moved onto paper. Teal has to do two different jobs
+     here, so it is split: a deep one that passes contrast as text, a mid one for borders and
+     glyphs, and the bright brand cyan kept for glows and fills, where contrast does not apply. */
   :root{
-    --bg:#0B0F14;
-    --ink:#E8ECF3;
-    --dim:#9AA7BD;
-    --cy:#2DD4BF;
+    color-scheme:light;
+    --paper:#F6F9FC;
+    --card:#FFFFFF;
+    --ink:#0A1A2B;
+    --muted:#5A6B80;
+    --line:rgba(14,40,66,0.10);
+    --teal-ink:#0F766E;
+    --teal:#0D9488;
+    --cyan:#2DD4BF;
     --ease:cubic-bezier(0.2,0,0,1);
     --ease-soft:cubic-bezier(0.4,0,0.2,1);
   }
 
   /* ---------- the room ---------- */
   .page{
-    background:
-      radial-gradient(120% 70% at 50% -10%, rgba(45,212,191,0.10) 0%, rgba(45,212,191,0) 55%),
-      linear-gradient(176deg, #0C1321 0%, #0B0F14 42%, #091416 100%);
-    background-color:var(--bg);
+    background:linear-gradient(172deg, #FBFDFE 0%, #F3F8FB 44%, #EDF7F6 100%);
+    background-color:var(--paper);
     color:var(--ink);
     min-height:100svh;
     overflow-x:hidden;
@@ -60,49 +66,72 @@
     text-rendering:optimizeLegibility;
   }
   /* Every background layer is a fixed, pointer-transparent sheet under the content, so none of
-     it can ever intercept a tap on a phone. */
+     it can ever intercept a tap on a phone.
+     None of them is named bg-something, deliberately: Tailwind generates a .bg-<colour> utility
+     for every colour in the theme, it is injected after this stylesheet, and a hand-written
+     .bg-teal loses its background-color to a flat swatch of the real thing. */
   .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
   .bg i{position:absolute;display:block;}
-  /* The terminal grid, faded out everywhere but behind the hero. */
-  .bg-grid{
+  /* Not a generic grid: wide time columns over close price rows, which is the proportion a
+     chart actually has. Faded out before it reaches the links. */
+  .chart-grid{
     inset:0;
     background-image:
-      linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
-    background-size:68px 68px;
-    -webkit-mask-image:radial-gradient(ellipse 85% 48% at 50% 2%, #000 0%, rgba(0,0,0,0.35) 55%, transparent 80%);
-    mask-image:radial-gradient(ellipse 85% 48% at 50% 2%, #000 0%, rgba(0,0,0,0.35) 55%, transparent 80%);
+      linear-gradient(to right, rgba(14,40,66,0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(14,40,66,0.055) 1px, transparent 1px);
+    background-size:92px 42px;
+    -webkit-mask-image:radial-gradient(ellipse 92% 46% at 50% 0%, #000 0%, rgba(0,0,0,0.4) 58%, transparent 82%);
+    mask-image:radial-gradient(ellipse 92% 46% at 50% 0%, #000 0%, rgba(0,0,0,0.4) 58%, transparent 82%);
   }
-  .bg-teal{
-    top:-300px;left:50%;width:860px;height:760px;margin-left:-430px;border-radius:50%;
-    background:radial-gradient(circle, rgba(45,212,191,0.20) 0%, rgba(45,212,191,0.06) 46%, rgba(45,212,191,0) 72%);
+  /* The price line. It draws itself once and then stays put: motion that announces the page
+     rather than decorating it forever. */
+  .chart-line{
+    top:0;left:0;right:0;height:min(52vh,460px);width:100%;
+    -webkit-mask-image:linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image:linear-gradient(to bottom, #000 55%, transparent 100%);
   }
-  .bg-blue{
-    bottom:-360px;right:-220px;width:680px;height:680px;border-radius:50%;
-    background:radial-gradient(circle, rgba(96,165,250,0.13) 0%, rgba(45,212,191,0.04) 52%, rgba(45,212,191,0) 76%);
+  .chart-line svg{width:100%;height:100%;display:block;}
+  .spark{
+    fill:none;stroke:rgba(13,148,136,0.30);stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:1;stroke-dashoffset:1;
+    animation:draw 2.4s var(--ease-soft) 250ms forwards;
   }
-  .bg-vig{
-    inset:0;
-    background:radial-gradient(ellipse 78% 62% at 50% 38%, transparent 42%, rgba(0,0,0,0.55) 100%);
+  .sparkfill{opacity:0;animation:fadein 1.6s var(--ease-soft) 900ms forwards;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  @keyframes fadein{to{opacity:1;}}
+
+  /* On paper a radial wash is a visible disc, however soft the stops are: the eye finds the
+     circle's edge against white in a way it never does against near-black. So the colour comes
+     down the page linearly instead, and it is weak enough that the cards stay the brightest
+     thing on screen. */
+  .wash-top{
+    top:0;left:0;right:0;height:680px;
+    background:linear-gradient(180deg, rgba(45,212,191,0.17) 0%, rgba(45,212,191,0.07) 34%, rgba(45,212,191,0.015) 68%, rgba(45,212,191,0) 100%);
+  }
+  .wash-foot{
+    bottom:0;left:0;right:0;height:420px;
+    background:linear-gradient(0deg, rgba(96,165,250,0.13) 0%, rgba(96,165,250,0.04) 48%, rgba(96,165,250,0) 100%);
   }
 
   .shell{position:relative;z-index:1;}
 
   /* ---------- hero ---------- */
+  /* The mark brings its own dark background, which on paper becomes the one solid anchor the
+     eye lands on first. It only needs a ring and a shadow to sit down properly. */
   .mark{
-    width:76px;height:76px;border-radius:22px;overflow:hidden;
-    border:1px solid rgba(45,212,191,0.24);
-    box-shadow:0 16px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07);
+    width:78px;height:78px;border-radius:22px;overflow:hidden;
+    border:1px solid rgba(14,40,66,0.10);
+    box-shadow:0 14px 32px rgba(10,30,50,0.18), 0 2px 6px rgba(10,30,50,0.08);
   }
   .mark img{width:100%;height:100%;display:block;}
 
   .wordwrap{position:relative;display:inline-block;}
-  /* The glow lives behind the letters, never on them: a glow applied to the type itself makes
-     it read hollow. It breathes on opacity only, which the compositor handles for free. */
+  /* The bloom sits behind the letters, never on them, and breathes on opacity only. */
   .wordwrap::before{
-    content:'';position:absolute;left:50%;top:50%;width:118%;height:210%;
+    content:'';position:absolute;left:50%;top:50%;width:124%;height:220%;
     transform:translate(-50%,-50%);
-    background:radial-gradient(ellipse at center, rgba(45,212,191,0.22) 0%, rgba(45,212,191,0.07) 42%, rgba(45,212,191,0) 70%);
+    background:radial-gradient(ellipse at center, rgba(45,212,191,0.16) 0%, rgba(45,212,191,0.05) 44%, rgba(45,212,191,0) 72%);
     pointer-events:none;z-index:-1;
     animation:breathe 7s var(--ease-soft) infinite;
   }
@@ -112,8 +141,7 @@
     letter-spacing:-0.042em;line-height:1.02;
     color:var(--ink);
   }
-  /* The light sweep. 3s of travel, then it waits out the rest of the cycle, which is what keeps
-     it a highlight instead of a loading bar.
+  /* The light sweep, now a run of brand colour through near-black type.
      The letters are painted by the gradient, so the gradient has to cover them at every frame:
      background-position stays inside 0%..100%, where an over-sized image always spans the
      element. Park it outside that range and the uncovered letters go transparent. The flat
@@ -121,7 +149,7 @@
   @supports ((-webkit-background-clip:text) or (background-clip:text)){
     .wordmark{
       background-image:linear-gradient(100deg,
-        #E8ECF3 0%, #E8ECF3 40%, #FFFFFF 46%, #D8FFF8 50%, #FFFFFF 54%, #E8ECF3 60%, #E8ECF3 100%);
+        #0A1A2B 0%, #0A1A2B 40%, #0D9488 46%, #2DD4BF 50%, #0D9488 54%, #0A1A2B 60%, #0A1A2B 100%);
       background-size:260% 100%;background-repeat:no-repeat;
       -webkit-background-clip:text;background-clip:text;
       color:transparent;
@@ -134,50 +162,58 @@
     100%{background-position:0% 0;}
   }
   @keyframes breathe{
-    0%,100%{opacity:0.45;transform:translate(-50%,-50%) scale(0.97);}
-    50%{opacity:0.9;transform:translate(-50%,-50%) scale(1.04);}
+    0%,100%{opacity:0.5;transform:translate(-50%,-50%) scale(0.97);}
+    50%{opacity:1;transform:translate(-50%,-50%) scale(1.04);}
   }
 
-  .sub{font-size:15.5px;line-height:1.55;color:var(--dim);max-width:30ch;text-wrap:balance;}
+  .sub{font-size:15.5px;line-height:1.55;color:var(--muted);max-width:30ch;text-wrap:balance;}
 
   /* ---------- the tape ---------- */
   .tape{
     position:relative;overflow:hidden;
-    border:1px solid rgba(45,212,191,0.22);border-radius:999px;
-    background:linear-gradient(180deg, rgba(45,212,191,0.10), rgba(45,212,191,0.025));
-    box-shadow:inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.3);
+    border:1px solid rgba(13,148,136,0.22);border-radius:999px;
+    background:linear-gradient(180deg, #FFFFFF, #F2FBFA);
+    box-shadow:0 1px 2px rgba(10,30,50,0.05), 0 8px 22px rgba(13,148,136,0.10);
   }
   /* A light running the length of the bar: the ticker-tape read, done with one transform. */
   .tape::after{
     content:'';position:absolute;top:0;left:0;width:42%;height:1px;
-    background:linear-gradient(90deg, transparent, rgba(45,212,191,0.85), transparent);
+    background:linear-gradient(90deg, transparent, rgba(13,148,136,0.8), transparent);
     animation:tape 4.6s linear infinite;
   }
   @keyframes tape{0%{transform:translateX(-110%);}100%{transform:translateX(345%);}}
   .tape-txt{
     font-size:10.5px;font-weight:700;letter-spacing:0.17em;text-transform:uppercase;
-    color:var(--cy);white-space:nowrap;
+    color:var(--teal-ink);white-space:nowrap;
   }
   .pulse{
-    position:relative;width:7px;height:7px;border-radius:50%;background:var(--cy);
-    box-shadow:0 0 10px rgba(45,212,191,0.9);flex:0 0 auto;
+    position:relative;width:7px;height:7px;border-radius:50%;background:var(--teal);
+    box-shadow:0 0 0 3px rgba(13,148,136,0.14);flex:0 0 auto;
   }
   .pulse::after{
-    content:'';position:absolute;inset:0;border-radius:50%;border:1px solid var(--cy);
+    content:'';position:absolute;inset:0;border-radius:50%;border:1px solid var(--teal);
     animation:ping 2s var(--ease) infinite;
   }
   @keyframes ping{
-    0%{transform:scale(1);opacity:0.85;}
-    75%,100%{transform:scale(3.6);opacity:0;}
+    0%{transform:scale(1);opacity:0.8;}
+    75%,100%{transform:scale(3.4);opacity:0;}
   }
-  .rule{width:1px;height:12px;background:rgba(45,212,191,0.28);flex:0 0 auto;}
-  /* Three bars moving out of phase. It reports activity without pretending to report data. */
-  .meter{display:flex;align-items:flex-end;gap:3px;height:12px;flex:0 0 auto;}
-  .meter i{width:3px;border-radius:1px;background:var(--cy);opacity:0.75;height:35%;
-    animation:meter 1.5s var(--ease-soft) infinite;}
-  .meter i:nth-child(2){animation-delay:0.25s;}
-  .meter i:nth-child(3){animation-delay:0.5s;}
-  @keyframes meter{0%,100%{height:30%;opacity:0.5;}50%{height:100%;opacity:1;}}
+  .rule{width:1px;height:13px;background:rgba(13,148,136,0.26);flex:0 0 auto;}
+  /* Three candles: a wick the full height, a body that moves inside it. Enough of the motif to
+     read as a chart at 14px, and it reports activity without pretending to report data. */
+  .candles{display:flex;align-items:center;gap:6px;height:14px;flex:0 0 auto;}
+  .candles i{position:relative;width:1px;height:100%;background:rgba(13,148,136,0.45);display:block;}
+  .candles i::after{
+    content:'';position:absolute;left:-1.5px;width:4px;border-radius:1px;background:var(--teal);
+    top:32%;height:38%;
+    animation:candle 2.1s var(--ease-soft) infinite;
+  }
+  .candles i:nth-child(2)::after{animation-delay:0.35s;}
+  .candles i:nth-child(3)::after{animation-delay:0.7s;}
+  @keyframes candle{
+    0%,100%{top:34%;height:34%;}
+    50%{top:12%;height:66%;}
+  }
 
   /* ---------- cards ---------- */
   /* Entrance lives on the wrapper and hover lives on the card, so the two transforms never
@@ -187,26 +223,27 @@
 
   .card{
     position:relative;isolation:isolate;overflow:hidden;
-    border:1px solid rgba(255,255,255,0.10);border-radius:18px;
-    background:linear-gradient(180deg, #19212E 0%, #131A24 100%);
-    box-shadow:0 2px 14px rgba(0,0,0,0.4);
+    border:1px solid var(--line);border-radius:18px;
+    background:var(--card);
+    box-shadow:0 1px 2px rgba(10,30,50,0.06), 0 10px 26px rgba(10,30,50,0.08);
     color:var(--ink);text-decoration:none;
     transition:transform 240ms var(--ease), border-color 240ms var(--ease), box-shadow 240ms var(--ease);
     -webkit-tap-highlight-color:transparent;
   }
-  .card:focus-visible{outline:2px solid var(--cy);outline-offset:3px;}
+  .card:focus-visible{outline:2px solid var(--teal);outline-offset:3px;}
 
   /* The cursor-tracked wash. Desktop only, and it costs two custom properties. */
   .wash{
     position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;opacity:0;
-    background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%), rgba(45,212,191,0.16), transparent 68%);
+    background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%), rgba(45,212,191,0.20), transparent 68%);
     transition:opacity 260ms var(--ease);
   }
-  /* The shimmer: one skewed strip crossing the surface, transform-only. */
+  /* The shimmer: one skewed strip crossing the surface, transform-only. On paper it has to be
+     a band of colour, since a band of white would be invisible. */
   .sheen{position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;overflow:hidden;}
   .sheen i{
     position:absolute;top:-60%;bottom:-60%;left:0;width:45%;display:block;opacity:0;
-    background:linear-gradient(100deg, transparent, rgba(255,255,255,0.07) 42%, rgba(205,255,248,0.16) 50%, rgba(255,255,255,0.07) 58%, transparent);
+    background:linear-gradient(100deg, transparent, rgba(45,212,191,0.10) 40%, rgba(45,212,191,0.26) 50%, rgba(45,212,191,0.10) 60%, transparent);
     transform:translateX(-170%) skewX(-18deg);
   }
   @keyframes shimmer{
@@ -218,88 +255,97 @@
   @media (hover:hover) and (pointer:fine){
     .card:hover{
       transform:translateY(-3px) scale(1.012);
-      border-color:var(--cy);
-      box-shadow:0 18px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(45,212,191,0.35), 0 0 34px rgba(45,212,191,0.16);
+      border-color:var(--teal);
+      box-shadow:0 2px 4px rgba(10,30,50,0.05), 0 18px 38px rgba(13,148,136,0.20), 0 0 0 1px rgba(13,148,136,0.18);
     }
     .card:hover .wash{opacity:1;}
     .card:hover .sheen i{animation:shimmer 900ms var(--ease-soft) 1;}
-    .card:hover .ico{transform:scale(1.07);border-color:rgba(45,212,191,0.6);
-      background:linear-gradient(180deg, rgba(45,212,191,0.30), rgba(45,212,191,0.11));
-      box-shadow:0 0 0 4px rgba(45,212,191,0.09), 0 8px 20px rgba(45,212,191,0.2);}
-    .card:hover .chev{color:var(--cy);transform:translateX(4px);}
+    /* The tile fills in with solid brand colour. It is the clearest thing a light card can do. */
+    .card:hover .ico{
+      transform:scale(1.07);color:#FFFFFF;border-color:var(--teal);
+      background:linear-gradient(180deg, #0D9488, #0F766E);
+      box-shadow:0 8px 20px rgba(13,148,136,0.34);
+    }
+    .card:hover .chev{color:var(--teal);transform:translateX(4px);}
   }
   /* A tap gets the same brightening, which is the whole point of doing it on a phone. */
-  .card:active{transform:scale(0.985);border-color:var(--cy);}
+  .card:active{transform:scale(0.985);border-color:var(--teal);}
   .card:active .sheen i{animation:shimmer 700ms var(--ease-soft) 1;}
   .card:active .wash{opacity:1;}
 
   .ico{
     flex:0 0 auto;width:56px;height:56px;border-radius:16px;
-    background:linear-gradient(180deg, rgba(45,212,191,0.17), rgba(45,212,191,0.05));
-    border:1px solid rgba(45,212,191,0.30);
-    display:grid;place-items:center;color:var(--cy);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,0.07);
-    transition:transform 260ms var(--ease), background 260ms var(--ease), border-color 260ms var(--ease), box-shadow 260ms var(--ease);
+    background:linear-gradient(180deg, rgba(45,212,191,0.28), rgba(13,148,136,0.11));
+    border:1px solid rgba(13,148,136,0.30);
+    display:grid;place-items:center;color:var(--teal);
+    transition:transform 260ms var(--ease), background 260ms var(--ease), border-color 260ms var(--ease), box-shadow 260ms var(--ease), color 260ms var(--ease);
   }
   .ico svg{width:28px;height:28px;fill:currentColor;display:block;}
-  .ttl{font-size:17px;font-weight:600;letter-spacing:-0.015em;line-height:1.2;}
-  .dsc{font-size:12.5px;font-weight:500;color:var(--dim);line-height:1.35;margin-top:4px;}
-  .chev{flex:0 0 auto;color:#6B7A92;transition:transform 240ms var(--ease), color 240ms var(--ease);}
+  .ttl{font-size:17px;font-weight:600;letter-spacing:-0.015em;line-height:1.2;color:var(--ink);}
+  .dsc{font-size:12.5px;font-weight:500;color:var(--muted);line-height:1.35;margin-top:4px;}
+  .chev{flex:0 0 auto;color:#A3B2C4;transition:transform 240ms var(--ease), color 240ms var(--ease);}
   .chev svg{width:17px;height:17px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
 
   /* ---------- the featured one ---------- */
-  /* A gradient border, which is the one thing a flat 1px line cannot do: two padding-box layers
+  /* A gradient border, which is the one thing a flat 1px line cannot do: one padding-box layer
      for the surface, one border-box layer for the edge. */
   .feat{
     border:1px solid transparent;
     background:
-      linear-gradient(180deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.02) 100%) padding-box,
-      linear-gradient(180deg, #1B2634 0%, #121A24 100%) padding-box,
-      linear-gradient(145deg, rgba(45,212,191,0.9) 0%, rgba(96,165,250,0.5) 48%, rgba(45,212,191,0.28) 100%) border-box;
-    box-shadow:0 10px 34px rgba(0,0,0,0.45), 0 0 30px rgba(45,212,191,0.10);
+      linear-gradient(180deg, #EFFCFA 0%, #FFFFFF 72%) padding-box,
+      linear-gradient(145deg, #2DD4BF 0%, #60A5FA 52%, #2DD4BF 100%) border-box;
+    box-shadow:0 2px 4px rgba(10,30,50,0.05), 0 16px 36px rgba(13,148,136,0.18);
   }
   @media (hover:hover) and (pointer:fine){
-    .feat:hover{box-shadow:0 20px 48px rgba(0,0,0,0.55), 0 0 44px rgba(45,212,191,0.22);}
+    .feat:hover{box-shadow:0 2px 4px rgba(10,30,50,0.05), 0 24px 50px rgba(13,148,136,0.28);}
+    .feat:hover .ico{background:linear-gradient(180deg, #0F766E, #115E59);}
   }
   .feat .ico{
-    background:linear-gradient(180deg, #3FE3CE, #16B49F);
-    border-color:rgba(45,212,191,0.75);color:#06231F;
-    box-shadow:0 8px 22px rgba(45,212,191,0.28), inset 0 1px 0 rgba(255,255,255,0.3);
-  }
-  @media (hover:hover) and (pointer:fine){
-    .feat:hover .ico{background:linear-gradient(180deg,#54EDD9,#1CC4AD);border-color:rgba(45,212,191,0.9);}
+    background:linear-gradient(180deg, #0D9488, #0F766E);
+    border-color:rgba(15,118,110,0.45);color:#FFFFFF;
+    box-shadow:0 8px 20px rgba(13,148,136,0.28);
   }
   .eyebrow{
     display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;
-    color:var(--cy);background:rgba(45,212,191,0.12);border:1px solid rgba(45,212,191,0.3);
+    color:var(--teal-ink);background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.26);
     padding:3px 7px;border-radius:999px;vertical-align:2px;margin-left:8px;
   }
-  .offer{border-top:1px solid rgba(45,212,191,0.18);}
-  .offer-1{font-size:14.5px;font-weight:600;line-height:1.35;letter-spacing:-0.01em;}
-  .offer-2{font-size:12.5px;font-weight:500;color:var(--dim);line-height:1.4;margin-top:3px;}
+  .offer{border-top:1px solid rgba(13,148,136,0.20);}
+  .offer-1{font-size:14.5px;font-weight:600;line-height:1.35;letter-spacing:-0.01em;color:var(--ink);}
+  .offer-2{font-size:12.5px;font-weight:500;color:var(--muted);line-height:1.4;margin-top:3px;}
   /* On a narrow phone this line wraps, so it has to wrap between the two sentences rather than
      inside the price, which otherwise orphans "for 3 months." on its own line. */
   .nb{white-space:nowrap;}
   .chip{
     display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:0.1em;
-    color:#04201C;background:var(--cy);padding:3px 6px;border-radius:5px;
+    color:#FFFFFF;background:linear-gradient(180deg, #0F766E, #115E59);
+    padding:3px 6px;border-radius:5px;
     vertical-align:1.5px;margin-right:7px;
   }
   /* The code is the mechanism, so it is set apart from the sentence around it. */
   .code{
-    display:inline-block;font-weight:800;color:var(--cy);letter-spacing:0.07em;
-    background:rgba(45,212,191,0.12);border:1px solid rgba(45,212,191,0.3);
+    display:inline-block;font-weight:800;color:var(--teal-ink);letter-spacing:0.07em;
+    background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.3);
     padding:0 5px;border-radius:4px;
   }
 
-  .foot{font-size:12px;color:#6B7A92;}
+  .foot{font-size:12px;color:var(--muted);}
 
-  /* Someone who asked for less motion gets a still page: no sweep, no tape, no cascade. */
+  /* Someone who asked for less motion gets a still page: no sweep, no tape, no cascade, and
+     the price line already drawn rather than drawing. */
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation:none !important;transition:none !important;}
     .reveal{opacity:1 !important;transform:none !important;}
     .card:hover,.card:active{transform:none;}
-    .wordwrap::before{opacity:0.6;}
+    .wordwrap::before{opacity:0.75;}
+    .spark{stroke-dashoffset:0;}
+    .sparkfill{opacity:1;}
+  }
+  /* The path is stretched to the viewport, so on a phone the same 1200 units are squeezed into
+     a third of the width and the line gets dense enough to compete with the wordmark. Same
+     motif, held further back. */
+  @media (max-width:640px){
+    .chart-line{opacity:0.6;}
   }
   @media (max-width:380px){
     .ico{width:50px;height:50px;border-radius:14px;}
@@ -313,13 +359,29 @@
 <body class="page font-sans antialiased">
 
 <div class="bg" aria-hidden="true">
-  <i class="bg-grid"></i>
-  <i class="bg-teal"></i>
-  <i class="bg-blue"></i>
-  <i class="bg-vig"></i>
+  <i class="wash-top"></i>
+  <i class="wash-foot"></i>
+  <i class="chart-grid"></i>
+  <i class="chart-line">
+    <!-- An uptrend with real pullbacks in it, stretched to whatever width the device is. It is
+         a motif, not a claim: no axis, no numbers, nothing that could be read as a track record. -->
+    <svg viewBox="0 0 1200 420" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#2DD4BF" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path class="sparkfill" fill="url(#fade)"
+        d="M0,332 L60,314 L120,340 L180,300 L240,320 L300,268 L360,288 L420,240 L480,264 L540,210 L600,234 L660,186 L720,208 L780,160 L840,182 L900,138 L960,160 L1020,116 L1080,136 L1150,96 L1200,112 L1200,420 L0,420 Z"/>
+      <path class="spark" pathLength="1"
+        d="M0,332 L60,314 L120,340 L180,300 L240,320 L300,268 L360,288 L420,240 L480,264 L540,210 L600,234 L660,186 L720,208 L780,160 L840,182 L900,138 L960,160 L1020,116 L1080,136 L1150,96 L1200,112"
+        vector-effect="non-scaling-stroke"/>
+    </svg>
+  </i>
 </div>
 
-<div class="shell flex justify-center px-5 pb-10 pt-12" style="padding-top:calc(3rem + env(safe-area-inset-top));padding-bottom:calc(2.5rem + env(safe-area-inset-bottom));">
+<div class="shell flex justify-center px-5" style="padding-top:calc(3rem + env(safe-area-inset-top));padding-bottom:calc(2.5rem + env(safe-area-inset-bottom));">
   <main class="w-full max-w-[500px]">
 
     <!-- ================= hero ================= -->
@@ -337,11 +399,11 @@
 
       <p class="sub reveal mt-4" data-reveal>Futures day trader. Posting the process, the losses included.</p>
 
-      <div class="tape reveal mt-7 inline-flex items-center gap-2.5 py-2 pl-3.5 pr-3" data-reveal>
+      <div class="tape reveal mt-7 inline-flex items-center gap-2.5 py-2 pl-3.5 pr-3.5" data-reveal>
         <span class="pulse"></span>
         <span class="tape-txt">Every account, one place</span>
         <span class="rule"></span>
-        <span class="meter" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="candles" aria-hidden="true"><i></i><i></i><i></i></span>
       </div>
     </header>
 
