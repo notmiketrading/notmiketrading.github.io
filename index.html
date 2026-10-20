@@ -153,54 +153,65 @@
   /* It was a slab: full padding, a big bloom and a 40px shadow, against five rows with no weight
      at all, so it read as the page with five footnotes. It is smaller and quieter now, and the
      index marks below carry ink of their own, which closes the gap from both ends. */
+  /* The block was 500x130 of near-black, which was about nine tenths of the dark area on the
+     page against five 44px discs. No amount of trimming its padding was going to fix that, so
+     the slab is gone. Killzonda now takes the same 44px disc as every other mark and differs in
+     one property, its fill. It is still obviously the featured one: it is first, it sits on the
+     only surface, it carries the only ember, and it is the only one with terms. */
   .feature{
-    display:block;margin-top:44px;position:relative;overflow:hidden;
-    border-radius:16px;padding:19px 20px 20px;
-    border:1px solid rgba(226,112,63,0.22);
-    background:
-      radial-gradient(130% 95% at 88% -12%, rgba(226,112,63,0.22) 0%, rgba(226,112,63,0.05) 42%, rgba(226,112,63,0) 68%),
-      #171614;
-    color:var(--paper);text-decoration:none;
-    box-shadow:0 1px 2px rgba(23,22,20,0.07), 0 9px 22px rgba(23,22,20,0.11);
+    display:block;margin-top:44px;position:relative;
+    border-radius:14px;padding:16px 18px 18px;
+    border:1px solid rgba(181,71,31,0.30);
+    background:linear-gradient(180deg, rgba(181,71,31,0.05) 0%, rgba(181,71,31,0) 62%), var(--paper-2);
+    color:var(--ink);text-decoration:none;
+    box-shadow:0 1px 2px rgba(23,22,20,0.05), 0 6px 16px rgba(23,22,20,0.06);
     transition:transform 260ms var(--ease), box-shadow 260ms var(--ease);
   }
   @media (hover:hover) and (pointer:fine){
     .feature:hover{
       transform:translateY(-2px);
-      box-shadow:0 1px 2px rgba(23,22,20,0.07), 0 16px 34px rgba(23,22,20,0.17);
+      box-shadow:0 1px 2px rgba(23,22,20,0.05), 0 12px 26px rgba(23,22,20,0.10);
     }
-    .feature:hover .f-arw{transform:translate(3px,-3px);}
+    .feature:hover .f-arw{transform:translate(2px,-2px);color:var(--ember);}
   }
   .feature:active{transform:translateY(0);}
   .feature:focus-visible,.row:focus-visible{outline:2px solid var(--ember);outline-offset:3px;}
 
-  .f-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+  /* Same geometry as .row, so the two read as one system. */
+  .f-top{display:flex;align-items:center;gap:14px;}
   /* Spans inside an <a>: every one of these needs saying out loud, or the block collapses to a
      single run of inline text. */
-  .f-top > span:first-child{display:block;min-width:0;}
-  .kicker{
-    display:block;
-    font-family:var(--mono);font-size:9.5px;font-weight:500;
-    letter-spacing:0.2em;text-transform:uppercase;color:var(--ember-lit);
+  .f-disc{
+    flex:0 0 auto;width:44px;height:44px;border-radius:50%;
+    border:1px solid var(--ember);background:var(--ember);
+    display:grid;place-items:center;color:var(--paper);
   }
+  .f-disc svg{width:20px;height:20px;fill:currentColor;}
+  .f-meta{flex:1 1 auto;min-width:0;display:block;}
   .f-name{
-    display:block;margin-top:7px;font-family:var(--serif);font-weight:400;
-    font-size:25px;line-height:1.05;letter-spacing:-0.008em;color:var(--paper);
+    display:block;font-family:var(--serif);font-weight:400;
+    font-size:22px;line-height:1.15;letter-spacing:-0.008em;color:var(--ink);
+  }
+  .kicker{
+    display:block;margin-top:3px;
+    font-family:var(--mono);font-size:9px;font-weight:500;
+    letter-spacing:0.19em;text-transform:uppercase;color:var(--ember);
   }
   .f-arw{
-    flex:0 0 auto;color:var(--paper);opacity:0.75;
-    transition:transform 260ms var(--ease);
+    flex:0 0 auto;color:var(--ink-4);
+    transition:transform 260ms var(--ease), color 260ms var(--ease);
   }
-  .f-arw svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  .f-arw svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
 
-  .terms{display:block;margin-top:16px;padding-top:14px;border-top:1px solid rgba(243,239,231,0.16);}
-  .term-1{display:block;font-size:14.5px;font-weight:500;line-height:1.4;color:var(--paper);}
-  .term-2{display:block;margin-top:5px;font-size:12.5px;font-weight:400;line-height:1.5;color:rgba(243,239,231,0.62);}
+  /* Hung off the disc column, the same 44 + 14 the index uses. */
+  .terms{display:block;margin-left:58px;margin-top:13px;padding-top:12px;border-top:1px solid rgba(181,71,31,0.18);}
+  .term-1{display:block;font-size:14px;font-weight:500;line-height:1.4;color:var(--ink);}
+  .term-2{display:block;margin-top:4px;font-size:12.5px;font-weight:400;line-height:1.45;color:var(--ink-3);}
   /* The code is the mechanism, so it is set apart from the sentence around it. */
   .code{
     display:inline-block;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:0.05em;
-    color:var(--ember-lit);background:rgba(226,112,63,0.14);
-    border:1px solid rgba(226,112,63,0.28);
+    color:var(--ember);background:rgba(181,71,31,0.10);
+    border:1px solid rgba(181,71,31,0.30);
     padding:1px 5px;border-radius:4px;
   }
   /* This line wraps on a narrow phone, so it wraps between the two sentences rather than inside
@@ -286,8 +297,11 @@
   }
   @media (max-width:420px){
     .sheet{padding-left:20px;padding-right:20px;padding-top:calc(56px + env(safe-area-inset-top));}
-    .feature{padding:20px;}
-    .f-name{font-size:27px;}
+    .feature{padding:14px 15px 16px;}
+    .f-top{gap:12px;}
+    .f-disc{width:42px;height:42px;}
+    .f-name{font-size:21px;}
+    .terms{margin-left:54px;}
     .row{height:74px;gap:12px;padding:0 8px;}
     .glyph{width:42px;height:42px;}
     .nm{font-size:16px;}
@@ -364,11 +378,12 @@
     <!-- ===================== the one block of ink ===================== -->
     <a class="feature rise" data-rise href="https://killzonda.com/?ref=nmt" target="_blank" rel="noopener noreferrer">
       <span class="f-top">
-        <span>
-          <span class="kicker">My futures journal</span>
+        <span class="f-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v16.5A1.5 1.5 0 0 0 4.5 21H21v-2H5V3H3Zm15.3 3.3-4.6 4.6-2.6-2.6L7 12.4l1.4 1.4 3.7-3.7 2.6 2.6 6-6-1.4-1.4Z"/></svg></span>
+        <span class="f-meta">
           <span class="f-name">Killzonda</span>
+          <span class="kicker">My futures journal</span>
         </span>
-        <span class="f-arw"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
+        <span class="f-arw" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
       </span>
       <span class="terms">
         <span class="term-1">Start free, no card necessary.</span>
