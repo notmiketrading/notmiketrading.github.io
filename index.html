@@ -94,36 +94,14 @@
   .sheet{
     position:relative;z-index:1;
     display:flex;justify-content:center;
-    padding:calc(72px + env(safe-area-inset-top)) 24px calc(56px + env(safe-area-inset-bottom));
+    padding:calc(92px + env(safe-area-inset-top)) 24px calc(56px + env(safe-area-inset-bottom));
   }
   .col{width:100%;max-width:500px;}
 
   /* ---------- masthead ---------- */
   .head{display:flex;flex-direction:column;align-items:center;text-align:center;}
 
-  /* Mike’s own mark, re-hued rather than redrawn. The render is a cyan neon lockup on a
-     near-black plate, opaque at every pixel, so there is nothing to key out and no reason to:
-     neon on dark IS the logo. Only the hue moves. The matrix lives on #ember in the markup. */
-  /* No plate. The lockup occupies x 44-249, y 101-184 of the 288 square and the rest of the
-     canvas is the field the filter removes, so the box is cropped to x 30-262, y 86-198.
-     Leaving the square uncropped would hang 190px of nothing under the logo.
-     The fade is not decoration. A low ramp keeps some of the plate's own lighting gradient, and
-     the top of the crop is the brightest of it, so without this the box ends in a visible line.
-     Top gets more than the bottom because that is where the render's bloom is. */
-  .mark{
-    position:relative;width:214px;height:104px;overflow:hidden;
-    -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 12%, #000 90%, transparent 100%);
-    mask-image:linear-gradient(to bottom, transparent 0%, #000 12%, #000 90%, transparent 100%);
-  }
-  .mark picture{display:contents;}
-  /* 288 scaled by 0.925 so the 232-wide crop lands at 214, then offset to the crop's origin. */
-  .mark img{
-    position:absolute;width:266.4px;height:266.4px;left:-27.8px;top:-79.6px;
-    filter:url(#ember);
-  }
-
   .wordmark{
-    margin-top:30px;
     font-family:var(--serif);font-weight:400;
     font-size:clamp(41px,11.6vw,62px);
     line-height:1.0;letter-spacing:-0.014em;
@@ -297,7 +275,7 @@
     .leaf{opacity:0.55;}
   }
   @media (max-width:420px){
-    .sheet{padding-left:20px;padding-right:20px;padding-top:calc(56px + env(safe-area-inset-top));}
+    .sheet{padding-left:20px;padding-right:20px;padding-top:calc(72px + env(safe-area-inset-top));}
     .feature{padding:14px 15px 16px;}
     .f-top{gap:12px;}
     .f-disc{width:42px;height:42px;}
@@ -314,56 +292,6 @@
 
 <body>
 
-<!-- The mark's re-hue. Not a hue-rotate: that is a linear approximation that turns saturated cyan
-     to mud. This is a channel remap derived from the render's own pixels, which measure [77,223,225]
-     at the neon and [5,8,15] at the plate.
-
-     Cyan carries most of its luminance in G, and ember needs most of its value in R, so a naive
-     swap costs the tube about 40% of its brightness and the letters go dim. G is therefore routed
-     into R at slightly over unity and kept at better than half strength in G, which holds the
-     tube near its original luminance. Measured through this matrix the tube lands at [245,150,70],
-     the hottest cores at [255,171,79], and the plate at [9,6,4]: the same near-black with the blue
-     taken out of it. The 3D work in the render, the bevels and the falloff, is untouched, because
-     nothing here moves a pixel. Only its hue. -->
-<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
-  <filter id="ember" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
-    <!-- Luminance becomes opacity. Keying the plate out and keeping the render's own colour does
-         not work here: the neon is bright, and bright on bone measures about 2:1, so the mark
-         would key out and then disappear. On paper the tonality has to inverrt, brightest to
-         densest, which is what this does. -->
-    <feColorMatrix type="luminanceToAlpha" result="key"/>
-    <!-- The ramp opens at luminance 20 and reaches full at 62, which is far lower than it looks
-         like it should be. The letters in this render are extruded solids lit from above: their
-         faces are DARK and only the bevels are bright. Key at a high threshold and you keep the
-         bevels and throw away the letters, which is why the first two attempts came out as
-         loose strokes with no NMT in them. Opening at 20 keeps the whole form, so the faces
-         stay pale, the bevels carry the ember, and the mark reads as struck into the paper.
-         The plate sits at 5-18, just under the ramp, so it still disappears. -->
-    <feComponentTransfer in="key" result="tone">
-      <feFuncA type="linear" slope="3.400" intercept="-0.293"/>
-    </feComponentTransfer>
-
-    <!-- The haze this used to leave above the letters was the render's own bloom, and no
-         threshold removes it: in luminance it sits between the letter faces and the bevels, so
-         faces low, bloom middle, bevels high. Anything that keeps the faces keeps the bloom.
-         What separates them is not brightness but distance. The bloom is spilt light lying on
-         the plate away from the strokes; the faces are always within a few pixels of a bevel.
-         So: threshold hard at about 95 to get the bevels alone, dilate that skeleton by 13 and
-         soften it, and use it as a stencil. 13 is measured against the two failure modes: below
-         about 10 the faces fall outside the stencil and the letters break into loose strokes,
-         above about 18 the stencil reaches far enough to let the bloom back in. Tone passes only where it is near a stroke. The
-         bloom is 30 or more pixels clear of the topmost bevel, so it is simply not admitted. -->
-    <feComponentTransfer in="key" result="bevels">
-      <feFuncA type="linear" slope="12" intercept="-4.5"/>
-    </feComponentTransfer>
-    <feMorphology in="bevels" operator="dilate" radius="13" result="near"/>
-    <feGaussianBlur in="near" stdDeviation="3" result="stencil"/>
-    <feComposite in="tone" in2="stencil" operator="in" result="shaped"/>
-
-    <feFlood flood-color="#B5471F" result="ink"/>
-    <feComposite in="ink" in2="shaped" operator="in"/>
-  </filter>
-</svg>
 
 <div class="ledger" aria-hidden="true"></div>
 
@@ -372,14 +300,6 @@
 
     <!-- ===================== masthead ===================== -->
     <header class="head">
-      <div class="rise" data-rise aria-hidden="true">
-        <div class="mark">
-          <picture>
-            <source srcset="nmt-mark.webp" type="image/webp">
-            <img src="nmt-mark.png" width="288" height="288" alt="notmiketrading" decoding="async">
-          </picture>
-        </div>
-      </div>
       <h1 class="wordmark rise" data-rise>notmiketrading</h1>
       <div class="flourish rise" data-rise aria-hidden="true"></div>
       <p class="stand rise" data-rise>Futures day trader. Posting the process, <em>the losses included.</em></p>
