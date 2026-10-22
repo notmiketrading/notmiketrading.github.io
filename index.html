@@ -165,7 +165,12 @@
     box-shadow:0 1px 2px rgba(0,0,0,0.4), 0 12px 30px rgba(0,0,0,0.34), 0 0 28px rgba(41,98,255,0.07);
     transition:transform 260ms var(--ease), box-shadow 260ms var(--ease), border-color 260ms var(--ease);
   }
-  @media (hover:hover) and (pointer:fine){
+  /* any-hover, not hover. (hover:hover) and (pointer:fine) describe the PRIMARY input, and a
+     Windows machine with a touchscreen reports a coarse primary even with a mouse plugged in,
+     so on a 2-in-1, a Surface or any touch monitor the whole block was skipped and nothing on
+     the page highlighted. any-hover asks whether ANY attached device can hover, which is the
+     actual question. A phone still answers no, so there is no sticky hover there. */
+  @media (any-hover: hover){
     .feature:hover{
       transform:translateY(-2px);
       border-color:rgba(41,98,255,0.62);
@@ -234,15 +239,15 @@
     transition:background-color 220ms var(--ease);
     -webkit-tap-highlight-color:transparent;
   }
-  @media (hover:hover) and (pointer:fine){
+  @media (any-hover: hover){
     .row:hover{background-color:rgba(255,255,255,0.035);}
     .row:hover .glyph{background:var(--blue);border-color:var(--blue);color:#FFFFFF;
       box-shadow:0 4px 14px rgba(41,98,255,0.3);}
     .row:hover .arw{color:var(--blue-ink);transform:translate(2px,-2px);}
   }
-  /* Everything above is behind (hover:hover) and (pointer:fine), which is false on a phone, so
-     on touch the icons had no feedback at all: a tap tinted the row and left the disc grey. The
-     press gets the same fill as the hover now, because on a phone the press IS the hover. */
+  /* Everything above is behind any-hover, which a phone correctly answers no to, so on touch
+     the icons had no feedback at all: a tap tinted the row and left the disc grey. The press
+     gets the same fill as the hover now, because on a phone the press IS the hover. */
   .row:active{background-color:rgba(255,255,255,0.055);}
   .row:active .glyph{background:var(--blue);border-color:var(--blue);color:#FFFFFF;}
   .row:active .arw{color:var(--blue-ink);}
