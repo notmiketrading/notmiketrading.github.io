@@ -173,7 +173,7 @@
     }
     .feature:hover .f-arw{transform:translate(2px,-2px);color:var(--blue-ink);}
   }
-  .feature:active{transform:translateY(0);}
+  .feature:active{transform:translateY(0);border-color:rgba(41,98,255,0.62);}
   .feature:focus-visible,.row:focus-visible{outline:2px solid var(--blue-ink);outline-offset:3px;}
 
   /* Same geometry as .row, so the two read as one system. */
@@ -240,7 +240,12 @@
       box-shadow:0 4px 14px rgba(41,98,255,0.3);}
     .row:hover .arw{color:var(--blue-ink);transform:translate(2px,-2px);}
   }
+  /* Everything above is behind (hover:hover) and (pointer:fine), which is false on a phone, so
+     on touch the icons had no feedback at all: a tap tinted the row and left the disc grey. The
+     press gets the same fill as the hover now, because on a phone the press IS the hover. */
   .row:active{background-color:rgba(255,255,255,0.055);}
+  .row:active .glyph{background:var(--blue);border-color:var(--blue);color:#FFFFFF;}
+  .row:active .arw{color:var(--blue-ink);}
 
   .idx{
     flex:0 0 auto;width:17px;
