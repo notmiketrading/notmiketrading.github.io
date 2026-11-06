@@ -176,6 +176,23 @@
   .act li{font-size:12.5px;line-height:1.6;color:var(--text-2);margin-bottom:5px;}
   .act .why{margin-top:9px;font-size:12px;line-height:1.55;color:var(--text-3);}
 
+  /* social: one row per platform, the number that matters and its direction */
+  .plat{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid var(--line-soft);}
+  .plat:first-child{border-top:0;}
+  .plat .pn{font-size:13.5px;flex:1 1 auto;}
+  .plat .pv{font-family:var(--mono);font-size:13px;}
+  .plat .ps{font-size:11.5px;color:var(--text-3);margin-top:2px;}
+
+  /* the worklist: a count, who, and why they are on it */
+  .job{display:grid;grid-template-columns:46px 1fr;gap:13px;align-items:start;padding:11px 0;border-top:1px solid var(--line-soft);}
+  .job:first-child{border-top:0;}
+  .job .jn{font-family:var(--tight);font-weight:800;font-size:21px;letter-spacing:-0.03em;line-height:1;}
+  .job .jt{font-size:13.5px;font-weight:600;}
+  .job .jw{font-size:12px;line-height:1.5;color:var(--text-3);margin-top:3px;}
+  .job.urgent .jn{color:var(--bad-ink);}
+  .job.soon .jn{color:var(--warn-ink);}
+  .job.calm .jn{color:var(--text-3);}
+
   .cal{display:flex;flex-direction:column;gap:2px;}
   .ev{display:grid;grid-template-columns:62px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--line-soft);}
   .ev:first-child{border-top:0;}
@@ -252,6 +269,11 @@
     </div>
 
     <div class="panel">
+      <div class="phead"><span class="dot" id="dot-social"></span><h2>Social</h2><span class="src">YT / IG / TT</span></div>
+      <div class="pbody" id="p-social"></div>
+    </div>
+
+    <div class="panel">
       <div class="phead"><span class="dot" id="dot-grok"></span><h2>GrokBot</h2><span class="src">GrokBot</span></div>
       <div class="pbody" id="p-grok"></div>
     </div>
@@ -259,6 +281,11 @@
     <div class="panel">
       <div class="phead"><span class="dot" id="dot-cal"></span><h2>Calendar</h2><span class="src">Google</span></div>
       <div class="pbody" id="p-cal"></div>
+    </div>
+
+    <div class="panel wide">
+      <div class="phead"><span class="dot" id="dot-outbox"></span><h2>Needs sending</h2><span class="src">Stripe + Supabase</span></div>
+      <div class="pbody" id="p-outbox"></div>
     </div>
 
     <div class="panel wide">
@@ -348,6 +375,17 @@ const DASH = (() => {
       {k:'Signals today',  v:'18'},
       {k:'Win rate (30d)', v:'61%'},
       {k:'Last heartbeat', v:'4 min ago'}
+    ]},
+    social: { rows:[
+      {name:'YouTube',   v:'1,240 subs',   s:'+38 this week, 3 uploads'},
+      {name:'Instagram', v:'8,910 follow', s:'+112 this week, 6 posts'},
+      {name:'TikTok',    v:'14,300 follow',s:'+430 this week, 9 clips'}
+    ]},
+    outbox: { jobs:[
+      {n:4, t:'Trial ends in 2 days',  w:'Day 6 is the email that converts. These four have not been contacted.', k:'urgent'},
+      {n:1, t:'Payment failed',        w:'Card declined on renewal. Stripe retries, but a note from you recovers more.', k:'urgent'},
+      {n:2, t:'Cancelled this week',   w:'Ask the one question. You cannot fix churn you cannot explain.', k:'soon'},
+      {n:7, t:'Signed up, no trade',   w:'Logged in and never logged a trade, so they have not seen the product work yet.', k:'soon'}
     ]},
     cal: { events:[
       {t:'09:30', d:'Today',    s:'Market open, review overnight'},
@@ -443,6 +481,25 @@ const DASH = (() => {
     el.innerHTML = '<table><tbody>'
       + d.rows.map(r => '<tr><td class="dim">' + r.k + '</td><td class="r num">' + r.v + '</td></tr>').join('')
       + '</tbody></table>';
+  }
+
+  function renderSocial(el, d){
+    $('dot-social').className = 'dot live';
+    el.innerHTML = d.rows.map(r =>
+      '<div class="plat"><div class="pn">' + r.name + '<div class="ps">' + r.s + '</div></div>'
+      + '<div class="pv">' + r.v + '</div></div>').join('');
+  }
+
+  function renderOutbox(el, d){
+    $('dot-outbox').className = 'dot live';
+    if (!d.jobs.length){
+      el.innerHTML = '<div class="offstate"><div class="t">Nobody is waiting</div>'
+        + '<div class="m">No trials ending, no failed payments, no unanswered cancellations.</div></div>';
+      return;
+    }
+    el.innerHTML = d.jobs.map(j =>
+      '<div class="job ' + (j.k || 'calm') + '"><div class="jn">' + j.n + '</div>'
+      + '<div><div class="jt">' + j.t + '</div><div class="jw">' + j.w + '</div></div></div>').join('');
   }
 
   function renderCal(el, d){
@@ -564,7 +621,9 @@ const DASH = (() => {
       ['funnel',  'p-funnel',  'dot-funnel',  renderFunnel],
       ['revenue', 'p-revenue', 'dot-revenue', renderRevenue],
       ['traffic', 'p-traffic', 'dot-traffic', renderTraffic],
+      ['social',  'p-social',  'dot-social',  renderSocial],
       ['grok',    'p-grok',    'dot-grok',    renderGrok],
+      ['outbox',  'p-outbox',  'dot-outbox',  renderOutbox],
       ['cal',     'p-cal',     'dot-cal',     renderCal]
     ];
 

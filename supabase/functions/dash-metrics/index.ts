@@ -162,6 +162,13 @@ Deno.serve(async (req) => {
       waiting("Needs a GA4 service account and GA4_PROPERTY_ID in this function's secrets.")),
     gather("grok", async () =>
       waiting("Needs GrokBot's API details.")),
+    // Four platforms, not five. X is left out on purpose: reading your own
+    // analytics there needs their paid tier, and a panel that silently shows
+    // nothing is worse than one that was never promised.
+    gather("social", async () =>
+      waiting("Needs YouTube, Instagram and TikTok API tokens in this function's secrets.")),
+    gather("outbox", async () =>
+      waiting("Needs Stripe plus the Supabase tables, to work out who is waiting on an email.")),
   ]);
 
   return json({ ok: true, at: new Date().toISOString(), panels }, 200, origin);
