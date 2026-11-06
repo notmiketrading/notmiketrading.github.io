@@ -274,34 +274,27 @@
 /* ===========================================================================
    CONFIG
 
-   Every value here is safe to be public and safe in this repo. The Supabase
-   anon key is designed to sit in a browser: it grants nothing on its own and
-   Row Level Security decides what it can read. The Google client id and the
-   GA4 property id are public identifiers too.
+   Every value here is safe to be public. The Supabase anon key is built to sit
+   in a browser: on its own it grants nothing. The Google client id is a public
+   identifier too.
 
-   Nothing secret belongs on this page. Stripe secret keys, the Supabase
-   service_role key and Google service account credentials go into Supabase
-   Edge Function secrets, and this page calls those functions. Anyone can read
-   this file, so treat anything written here as published.
+   Nothing secret belongs on this page, and nothing secret is needed here any
+   more. Killzonda's customers share this Supabase project, so signing in
+   proves only who you are. What you may SEE is decided by the dash-metrics
+   Edge Function, which compares you against an ADMIN_EMAIL secret the browser
+   never receives, and refuses before it gathers anything. The page cannot read
+   a table directly, so that one server-side check is the whole boundary.
    =========================================================================== */
 const CONFIG = {
-  supabaseUrl:     '',   // https://xxxxxxxx.supabase.co
-  supabaseAnonKey: '',   // the anon / publishable key, not service_role
-  allowedEmail:    '',   // your email. See the note on enforcement below.
-  googleClientId:  '',   // OAuth web client id, for the calendar
-  ga4PropertyId:   ''    // numeric GA4 property id
+  supabaseUrl:     '',   // https://xxxxxxxx.supabase.co   (Killzonda's project)
+  supabaseAnonKey: '',   // the anon / publishable key, never service_role
+  googleClientId:  ''    // OAuth web client id, for the calendar only
 };
-
-/* The allowlist below is a convenience, not a security control: it runs in the
-   browser and anyone can edit it. What actually keeps other people out is
-   Supabase: turn off public signups, and write RLS policies so rows are only
-   readable by your user id. Do that before any real data lands here. */
 
 const DASH = (() => {
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const configured = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey);
   let sb = null, SAMPLE = true;
 
   /* ---------- formatting ---------- */
@@ -309,22 +302,26 @@ const DASH = (() => {
   const pct   = n => n == null ? null : (n * 100).toFixed(1) + '%';
   const int   = n => n == null ? null : Math.round(n).toLocaleString('en-US');
 
-  /* ---------- adapters ----------
-     Each returns {ok:true, data} or {ok:false, reason, needs}. None of them
-     invents anything: if a source is not wired up it says so and the panel
-     renders an off state naming what it is waiting for. Sample data is a
-     separate, clearly labelled path. */
-  const SOURCES = {
-    funnel:  { needs: 'Supabase tables for signups and trials, plus Stripe for conversions.' },
-    revenue: { needs: 'A Supabase Edge Function holding a restricted Stripe read key.' },
-    traffic: { needs: 'An Edge Function calling the GA4 Data API for property ' + (CONFIG.ga4PropertyId || '(unset)') + '.' },
-    grok:    { needs: 'Whatever GrokBot exposes. Tell me what its API looks like and I will wire it.' },
-    cal:     { needs: 'A Google OAuth client id in CONFIG, with Calendar read scope.' }
-  };
+  /* ---------- data ----------
+     One request, to one function, which decides whether this person may see
+     anything at all. It answers either with a panel's data or with the reason
+     that panel is still waiting, and the page renders whichever it gets. The
+     page never invents a number: sample mode is a separate path behind a
+     banner, and is only reachable before the project is configured. */
+  let LOCKED = false;
 
-  async function load(name){
-    if (SAMPLE) return { ok:true, data: SAMPLES[name] };
-    return { ok:false, reason:'not-connected', needs: SOURCES[name].needs };
+  async function fetchPanels(){
+    if (SAMPLE) return { ok:true, panels:null };
+    const { data:{ session } } = await sb.auth.getSession();
+    if (!session) return { ok:false, locked:false, reason:'No session.' };
+
+    const res = await fetch(CONFIG.supabaseUrl + '/functions/v1/dash-metrics', {
+      headers: { Authorization: 'Bearer ' + session.access_token }
+    });
+
+    if (res.status === 403) return { ok:false, locked:true };
+    if (!res.ok) return { ok:false, locked:false, reason:'dash-metrics returned ' + res.status + '. Is it deployed?' };
+    return await res.json();
   }
 
   /* ---------- sample shapes ----------
@@ -550,11 +547,19 @@ const DASH = (() => {
   }
 
   /* ---------- orchestration ---------- */
+  function lockedState(){
+    $('app').classList.add('hidden');
+    $('gate').classList.remove('hidden');
+    $('gateSub').textContent = 'Signed in, but not authorised.';
+    $('gateForm').classList.add('hidden');
+    $('gateNote').className = 'note err';
+    $('gateNote').textContent = 'This account cannot view the dashboard.';
+  }
+
   async function refresh(){
     $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
     $('sampleBanner').classList.toggle('hide', !SAMPLE);
 
-    const bag = {};
     const panels = [
       ['funnel',  'p-funnel',  'dot-funnel',  renderFunnel],
       ['revenue', 'p-revenue', 'dot-revenue', renderRevenue],
@@ -563,13 +568,36 @@ const DASH = (() => {
       ['cal',     'p-cal',     'dot-cal',     renderCal]
     ];
 
-    renderKpis(SAMPLE ? SAMPLES.kpis : null);
-    if (SAMPLE) bag.kpis = SAMPLES.kpis;
+    const res = await fetchPanels();
+    if (res.locked){ lockedState(); return; }
+
+    const bag = {};
+
+    if (SAMPLE){
+      renderKpis(SAMPLES.kpis);
+      bag.kpis = SAMPLES.kpis;
+      for (const [name, elId, dotId, render] of panels){ bag[name] = SAMPLES[name]; render($(elId), SAMPLES[name]); }
+      renderPlaybook(bag);
+      return;
+    }
+
+    const got = (res.panels) || {};
+    const rev = got.revenue && got.revenue.ok ? got.revenue.data : null;
+
+    // The tiles are a view of the revenue panel, so they share its fate.
+    renderKpis(rev ? {
+      mrr: rev.mrr, mrrPrev: null,
+      subs: rev.subs, subsPrev: null,
+      trials: rev.trials, trialsPrev: null,
+      conv: null, convPrev: null
+    } : null);
+    if (rev) bag.kpis = { mrr:rev.mrr, subs:rev.subs, trials:rev.trials, conv:null };
 
     for (const [name, elId, dotId, render] of panels){
-      const res = await load(name);
-      if (res.ok){ bag[name] = res.data; render($(elId), res.data); }
-      else offState($(elId), dotId, res.needs);
+      if (name === 'cal'){ offState($(elId), dotId, 'Add a Google OAuth client id to CONFIG.'); continue; }
+      const panel = got[name];
+      if (panel && panel.ok){ bag[name] = panel.data; render($(elId), panel.data); }
+      else offState($(elId), dotId, (panel && panel.reason) || res.reason || 'Waiting on dash-metrics.');
     }
     renderPlaybook(bag);
   }
@@ -584,7 +612,7 @@ const DASH = (() => {
   async function init(){
     $('refresh').addEventListener('click', refresh);
 
-    if (!configured){
+    if (!CONFIG.supabaseUrl || !CONFIG.supabaseAnonKey){
       // No project yet. Rather than a login that cannot work, say what is missing.
       $('gateSub').textContent = 'Not configured yet.';
       $('gateForm').classList.add('hidden');
@@ -602,9 +630,6 @@ const DASH = (() => {
     $('sendLink').addEventListener('click', async () => {
       const email = $('email').value.trim();
       if (!email) return;
-      if (CONFIG.allowedEmail && email.toLowerCase() !== CONFIG.allowedEmail.toLowerCase()){
-        showGate('That address cannot sign in here.', 'err'); return;
-      }
       $('sendLink').disabled = true;
       const { error } = await sb.auth.signInWithOtp({
         email, options: { emailRedirectTo: window.location.href }
@@ -616,19 +641,11 @@ const DASH = (() => {
 
     $('signout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
 
+    // Anyone with a Killzonda account can reach a valid session here, and that
+    // is fine. refresh() calls the gated function, and a 403 locks the page.
     const { data:{ session } } = await sb.auth.getSession();
-    if (session) gateOrShow(session);
-    sb.auth.onAuthStateChange((_e, s) => { if (s) gateOrShow(s); });
-  }
-
-  function gateOrShow(session){
-    const email = session.user && session.user.email;
-    if (CONFIG.allowedEmail && email && email.toLowerCase() !== CONFIG.allowedEmail.toLowerCase()){
-      sb.auth.signOut();
-      showGate('That address cannot sign in here.', 'err');
-      return;
-    }
-    showApp();
+    if (session) showApp();
+    sb.auth.onAuthStateChange((_e, s) => { if (s) showApp(); });
   }
 
   return { init, refresh };
