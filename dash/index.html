@@ -193,6 +193,9 @@
   .job.soon .jn{color:var(--warn-ink);}
   .job.calm .jn{color:var(--text-3);}
 
+  .newhead{margin:18px 0 9px;padding-top:14px;border-top:1px solid var(--line-soft);
+    font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--blue-ink);}
+
   .bigfig{font-family:var(--tight);font-weight:800;font-size:42px;letter-spacing:-0.04em;line-height:1;}
   .bigsub{margin-top:7px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--text-3);}
 
@@ -372,7 +375,8 @@ const DASH = (() => {
      readings. They exist to size the layout. */
   const SAMPLES = {
     kpis: { total:24760, totalComplete:true, mrr:1840, subs:92, subsPrev:84, trials:31, trialsPrev:36, conv:0.627, convPrev:0.58 },
-    funnel: { everStarted:140, converted:74, inTrial:22, lapsed:44, conversion:0.627 },
+    funnel: { everStarted:140, converted:74, inTrial:22, lapsed:44, conversion:0.627,
+      newly:{ startedDay:3, startedWeek:17, convertedDay:1, convertedWeek:9, lostDay:0, lostWeek:4 } },
     revenue: { mrr:1840, total:24760, totalComplete:true, series:[1180,1250,1240,1390,1455,1520,1610,1840], churn:0.058, arpu:20.0, coupon:14 },
     traffic: { sessions:4200, rows:[
       {src:'tiktok',          n:1680},
@@ -479,6 +483,22 @@ const DASH = (() => {
         + '<tr><td class="dim">Left during the trial</td><td class="r num">' + int(d.lapsed) + '</td></tr>'
         + '<tr><td class="dim">Trial to paid</td><td class="r num">'
         + (d.conversion == null ? 'no one has finished yet' : pct(d.conversion)) + '</td></tr>'
+        + '</tbody></table>';
+    }
+
+    // Totals say how big this is and barely move day to day. Arrivals say
+    // whether it is working, which is the reason to open the page at all.
+    if (d.newly){
+      const n = d.newly;
+      const row = (label, day, week) =>
+        '<tr><td class="dim">' + label + '</td>'
+        + '<td class="r num"' + (day ? '' : ' style="color:var(--text-3)"') + '>' + int(day) + '</td>'
+        + '<td class="r num"' + (week ? '' : ' style="color:var(--text-3)"') + '>' + int(week) + '</td></tr>';
+      html += '<div class="newhead">New people</div>'
+        + '<table><thead><tr><th>&nbsp;</th><th class="r">24 hours</th><th class="r">7 days</th></tr></thead><tbody>'
+        + row('Started a trial', n.startedDay, n.startedWeek)
+        + row('Converted to paid', n.convertedDay, n.convertedWeek)
+        + row('Left', n.lostDay, n.lostWeek)
         + '</tbody></table>';
     }
     el.innerHTML = html;

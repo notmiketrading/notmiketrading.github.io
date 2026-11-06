@@ -102,9 +102,12 @@ async function trialPanel(): Promise<Panel> {
   if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
 
   const now = Math.floor(Date.now() / 1000);
+  const DAY = 86400;
   const trialing = await stripe("subscriptions?status=trialing&limit=100");
   const active = await stripe("subscriptions?status=active&limit=100");
   const gone = await stripe("subscriptions?status=canceled&limit=100");
+
+  const all = [...(trialing.data ?? []), ...(active.data ?? []), ...(gone.data ?? [])];
 
   const inTrial = (trialing.data ?? []).length;
 
@@ -113,13 +116,24 @@ async function trialPanel(): Promise<Panel> {
     .filter((x: { trial_end?: number }) => x.trial_end && x.trial_end < now).length;
 
   // Cancelled on or before the trial ended: they decided during the seven days.
-  // canceled_at is when they asked, which is the decision we care about, not
-  // ended_at, which is usually just trial_end for these.
   const lapsed = (gone.data ?? [])
     .filter((x: { trial_end?: number; canceled_at?: number }) =>
       x.trial_end && x.canceled_at && x.canceled_at <= x.trial_end).length;
 
   const decided = converted + lapsed;
+
+  // Totals answer "how big", which barely moves day to day. Arrivals answer
+  // "is it working", which is the question you actually open this for. Counted
+  // over two windows because one day is noise and a week has a shape.
+  const since = (n: number) => now - n * DAY;
+  const startedIn = (n: number) =>
+    all.filter((x: { created?: number }) => (x.created ?? 0) >= since(n)).length;
+  const convertedIn = (n: number) =>
+    (active.data ?? []).filter((x: { trial_end?: number }) =>
+      x.trial_end && x.trial_end < now && x.trial_end >= since(n)).length;
+  const lostIn = (n: number) =>
+    (gone.data ?? []).filter((x: { canceled_at?: number }) =>
+      (x.canceled_at ?? 0) >= since(n)).length;
 
   return {
     ok: true,
@@ -128,11 +142,17 @@ async function trialPanel(): Promise<Panel> {
       converted,
       lapsed,
       everStarted: inTrial + converted + lapsed,
-      // Only over people whose seven days are actually up. Counting those still
-      // inside their trial as failures would understate this every single day.
       conversion: decided ? converted / decided : null,
       accounts: null,
       accountsNote: "Accounts come from Killzonda, which is not connected yet.",
+      newly: {
+        startedDay: startedIn(1),
+        startedWeek: startedIn(7),
+        convertedDay: convertedIn(1),
+        convertedWeek: convertedIn(7),
+        lostDay: lostIn(1),
+        lostWeek: lostIn(7),
+      },
     },
   };
 }
@@ -164,6 +184,57 @@ async function totalRevenue(): Promise<{ cents: number; complete: boolean }> {
   }
 
   return { cents, complete };
+}
+
+// ---------------------------------------------------------------- YouTube ---
+// The only one of the three socials that needs nothing but an API key. Public
+// channel statistics are public, so there is no OAuth dance, no app review and
+// no token to refresh. Instagram and TikTok both want an app and an approval,
+// which is why they are not here yet.
+async function youtubePanel(): Promise<Panel> {
+  const key = Deno.env.get("YOUTUBE_API_KEY") ?? "";
+  const channel = Deno.env.get("YOUTUBE_CHANNEL_ID") ?? "";
+  if (!key || !channel) {
+    return waiting("Needs YOUTUBE_API_KEY and YOUTUBE_CHANNEL_ID in this function's secrets.");
+  }
+
+  const res = await fetch(
+    "https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=" +
+      encodeURIComponent(channel) + "&key=" + encodeURIComponent(key),
+  );
+  if (!res.ok) {
+    throw new Error("YouTube " + res.status + ": " + (await res.text()).slice(0, 140));
+  }
+  const body = await res.json();
+  const item = (body.items ?? [])[0];
+  if (!item) {
+    throw new Error("No channel matched that id. YOUTUBE_CHANNEL_ID should start UC.");
+  }
+
+  const st = item.statistics ?? {};
+  return {
+    ok: true,
+    data: {
+      rows: [
+        {
+          name: item.snippet?.title ?? "YouTube",
+          v: Number(st.subscriberCount ?? 0).toLocaleString("en-US") + " subs",
+          s: Number(st.viewCount ?? 0).toLocaleString("en-US") + " views across " +
+             Number(st.videoCount ?? 0).toLocaleString("en-US") + " videos",
+        },
+        {
+          name: "Instagram",
+          v: "not connected",
+          s: "needs a Facebook app linked to the business account",
+        },
+        {
+          name: "TikTok",
+          v: "not connected",
+          s: "needs a developer app and their approval",
+        },
+      ],
+    },
+  };
 }
 
 async function revenuePanel(): Promise<Panel> {
@@ -272,8 +343,7 @@ Deno.serve(async (req) => {
       // Four platforms, not five. X is left out on purpose: reading your own
       // analytics there needs their paid tier, and a panel that silently shows
       // nothing is worse than one that was never promised.
-      gather("social", async () =>
-        waiting("Needs YouTube, Instagram and TikTok API tokens in this function's secrets.")),
+      gather("social", youtubePanel),
       gather("grok", async () =>
         waiting("Needs somewhere the bots write to. Nothing can be read until something is recorded.")),
       gather("outbox", async () =>
