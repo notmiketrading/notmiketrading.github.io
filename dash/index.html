@@ -707,6 +707,15 @@ const DASH = (() => {
       return;
     }
 
+    // Which function is actually answering, and which secrets it can see. This
+    // exists because "I redeployed and nothing changed" was otherwise only
+    // diagnosable by comparing the wording of error messages.
+    if (res.build){
+      const missing = Object.keys(res.secrets || {}).filter(k => !res.secrets[k]);
+      $('stamp').textContent = $('stamp').textContent + '  ·  ' + res.build
+        + (missing.length ? '  ·  missing: ' + missing.join(', ') : '  ·  all secrets set');
+    }
+
     const got = (res.panels) || {};
     const rev = got.revenue && got.revenue.ok ? got.revenue.data : null;
 

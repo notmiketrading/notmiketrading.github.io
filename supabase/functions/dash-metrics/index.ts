@@ -31,6 +31,11 @@
 //   STRIPE_RESTRICTED_KEY   a restricted, read-only key. Optional until added.
 // =============================================================================
 
+// Bumped whenever this file changes. The dashboard prints it, so "did my
+// redeploy actually take" stops being something we deduce from the wording of
+// an error message and becomes something you can read off the page.
+const BUILD = "fn-7 ga4+youtube";
+
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
 const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
@@ -458,7 +463,22 @@ Deno.serve(async (req) => {
         waiting("Needs Stripe plus the Killzonda tables, to work out who is waiting on an email.")),
     ]);
 
-    return json({ ok: true, at: new Date().toISOString(), panels }, 200, origin);
+    const present = (k: string) => (Deno.env.get(k) ?? "") !== "";
+    return json({
+      ok: true,
+      at: new Date().toISOString(),
+      build: BUILD,
+      // Which secrets exist, never what they contain. Enough to tell a missing
+      // secret from a misnamed one without ever echoing a credential.
+      secrets: {
+        STRIPE_RESTRICTED_KEY: present("STRIPE_RESTRICTED_KEY"),
+        YOUTUBE_API_KEY: present("YOUTUBE_API_KEY"),
+        YOUTUBE_CHANNEL_ID: present("YOUTUBE_CHANNEL_ID"),
+        GA_SERVICE_ACCOUNT: present("GA_SERVICE_ACCOUNT"),
+        GA4_PROPERTY_ID: present("GA4_PROPERTY_ID"),
+      },
+      panels,
+    }, 200, origin);
   } catch (e) {
     return json({ error: "unhandled", detail: e instanceof Error ? e.message : String(e) }, 500, origin);
   }
