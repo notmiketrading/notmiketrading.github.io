@@ -1,23 +1,25 @@
 // =============================================================================
 // dash-metrics
 //
-// The only thing standing between a Killzonda customer and Mike's revenue
-// figures. Killzonda's own users live in this same Supabase project, so any
-// customer can sign in and get a genuine session. That is fine and expected:
-// authentication proves who you are, it does not say what you may see.
+// Everything the dashboard knows comes through here. The page cannot read a
+// table on its own, so this function is the only place that decides access.
 //
-// The gate is the ADMIN_EMAIL check below. It runs on the server, reads a
-// secret the browser never receives, and happens before a single byte of data
-// is gathered. The dashboard page never queries a table directly, so this
-// function is the one place that decides access. One check, one file.
+// It runs in nmt-control, a Supabase project of its own. Killzonda is not
+// referenced in this file and is not touched by it. When Killzonda data is
+// added later it will be read through a credential held in the secrets below,
+// a read-only database user that can select and nothing else.
 //
-// Deploy: Supabase dashboard -> Edge Functions -> Deploy a new function,
-// name it exactly "dash-metrics", paste this file, deploy.
+// The gate is the ADMIN_EMAIL check in the handler. It runs on the server,
+// reads a secret the browser never receives, and refuses before a single
+// figure is gathered. An unset ADMIN_EMAIL returns 500 rather than letting
+// everyone through, because a missing secret must never read as "allow".
 //
-// Secrets it reads (Edge Functions -> Secrets). None of these ever reach the
-// browser:
-//   ADMIN_EMAIL             your email, lower case
-//   STRIPE_RESTRICTED_KEY   a restricted key, read-only. Optional until added.
+// Deploy: Supabase dashboard -> Edge Functions -> Deploy a new function ->
+// via Editor. Name it exactly "dash-metrics", paste this file, deploy.
+//
+// Secrets it reads (Edge Functions -> Secrets). None reach the browser:
+//   ADMIN_EMAIL             the email you log in with
+//   STRIPE_RESTRICTED_KEY   a restricted, read-only key. Optional until added.
 // SUPABASE_URL and SUPABASE_ANON_KEY are injected by Supabase automatically.
 // =============================================================================
 
