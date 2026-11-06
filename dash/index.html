@@ -313,9 +313,13 @@
    a table directly, so that one server-side check is the whole boundary.
    =========================================================================== */
 const CONFIG = {
-  supabaseUrl:     '',   // https://xxxxxxxx.supabase.co   (Killzonda's project)
-  supabaseAnonKey: '',   // the anon / publishable key, never service_role
-  googleClientId:  ''    // OAuth web client id, for the calendar only
+  // nmt-control. A project of its own, in its own free organisation. Killzonda
+  // is not referenced here and is not touched by anything on this page.
+  supabaseUrl:     'https://mfthmscibqvylkcuxyyd.supabase.co',
+  // Decoded before it was committed: role "anon", so it is the publishable one
+  // and belongs in a public page. If this ever reads service_role, rotate it.
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mdGhtc2NpYnF2eWxrY3V4eXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODUxMTgsImV4cCI6MjEwOTU2MTExOH0.iVX-jQ6rjJJkQwA7dt69HiWelxti2nDyhy5ekWQT4SQ',
+  googleClientId:  ''    // OAuth web client id, for the calendar. Later.
 };
 
 const DASH = (() => {
