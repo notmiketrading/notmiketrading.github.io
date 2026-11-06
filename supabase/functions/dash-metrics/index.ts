@@ -188,12 +188,19 @@ async function revenuePanel(): Promise<Panel> {
   // rather than failing the whole panel.
   let total: number | null = null;
   let totalComplete = true;
+  let totalError: string | null = null;
   try {
     const t = await totalRevenue();
     total = t.cents / 100;
     totalComplete = t.complete;
-  } catch {
-    total = null;
+  } catch (e) {
+    // Keep the reason. Swallowing it here is what turned a missing Stripe
+    // permission into an unexplained "not connected" on the tile, which tells
+    // you something is wrong and nothing about what.
+    const raw = e instanceof Error ? e.message : String(e);
+    totalError = /charge/i.test(raw) || /permission/i.test(raw) || /\b403\b/.test(raw)
+      ? "Stripe key needs Charges: Read"
+      : raw.slice(0, 90);
   }
 
   return {
@@ -202,6 +209,7 @@ async function revenuePanel(): Promise<Panel> {
       mrr: cents / 100,
       total,
       totalComplete,
+      totalError,
       subs,
       trials: (trialing.data ?? []).length,
       // Kept in the payload though the panel no longer shows them: the

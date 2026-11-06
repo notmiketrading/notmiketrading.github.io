@@ -424,14 +424,16 @@ const DASH = (() => {
 
   function renderKpis(d){
     const cards = [
-      { k:'Total revenue',  v: d ? money(d.total) : null, d: '', sub: d && d.totalComplete === false ? 'first 2000 charges' : 'all time, net of refunds' },
+      { k:'Total revenue',  v: d ? money(d.total) : null, d: '',
+        sub: d && d.totalComplete === false ? 'first 2000 charges' : 'all time, net of refunds',
+        empty: d ? (d.totalError || 'Not connected') : 'Not connected' },
       { k:'Active subs',    v: d ? int(d.subs)    : null, d: d ? delta(d.subs, d.subsPrev) : '', sub:'vs last month' },
       { k:'Trials running', v: d ? int(d.trials)  : null, d: d ? delta(d.trials, d.trialsPrev) : '', sub:'7 day window' },
       { k:'Trial to paid',  v: d ? pct(d.conv)    : null, d: d ? delta(d.conv, d.convPrev) : '', sub:'last 30 days' }
     ];
     $('kpis').innerHTML = cards.map(c =>
       '<div class="kpi"><div class="k">' + c.k + '</div>'
-      + '<div class="v' + (c.v ? '' : ' empty') + '">' + (c.v || 'Not connected') + '</div>'
+      + '<div class="v' + (c.v ? '' : ' empty') + '">' + (c.v || c.empty || 'Not connected') + '</div>'
       + '<div class="d">' + c.d + '<span>' + (c.v ? c.sub : '') + '</span></div></div>'
     ).join('');
   }
@@ -690,7 +692,7 @@ const DASH = (() => {
 
     // The tiles are a view of the revenue panel, so they share its fate.
     renderKpis(rev ? {
-      total: rev.total, totalComplete: rev.totalComplete,
+      total: rev.total, totalComplete: rev.totalComplete, totalError: rev.totalError,
       mrr: rev.mrr, mrrPrev: null,
       subs: rev.subs, subsPrev: null,
       trials: rev.trials, trialsPrev: null,
