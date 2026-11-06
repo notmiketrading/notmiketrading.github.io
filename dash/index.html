@@ -369,12 +369,7 @@ const DASH = (() => {
      readings. They exist to size the layout. */
   const SAMPLES = {
     kpis: { mrr:1840, mrrPrev:1610, subs:92, subsPrev:84, trials:31, trialsPrev:36, conv:0.23, convPrev:0.19 },
-    funnel: { steps:[
-      {name:'Visitors',  n:4200},
-      {name:'Signups',   n:260},
-      {name:'Trials',    n:140},
-      {name:'Paid',      n:32}
-    ]},
+    funnel: { accounts:260, everStarted:140, converted:74, inTrial:22, lapsed:44, conversion:0.627 },
     revenue: { series:[1180,1250,1240,1390,1455,1520,1610,1840], churn:0.058, arpu:20.0, coupon:14 },
     traffic: { sessions:4200, rows:[
       {src:'tiktok',          n:1680},
@@ -440,19 +435,45 @@ const DASH = (() => {
 
   function renderFunnel(el, d){
     $('dot-funnel').className = 'dot live';
-    const top = d.steps[0].n || 1;
+
+    // Three states, because the trial takes a card: an account is not a trial,
+    // and the drop between them is the number worth seeing.
+    const steps = [
+      { name:'Accounts',      n: d.accounts },
+      { name:'Trial started', n: d.everStarted },
+      { name:'Paid',          n: d.converted }
+    ];
+    const known = steps.filter(s => s.n != null);
+    const top = Math.max.apply(null, known.map(s => s.n).concat([1]));
+
     let html = '<div class="funnel">';
-    d.steps.forEach((s, i) => {
+    steps.forEach(function(s, i){
+      if (s.n == null){
+        html += '<div class="step"><div class="nm">' + s.name + '</div>'
+              + '<div class="bar"></div><div class="n" style="color:var(--text-3)">?</div></div>'
+              + '<div class="conv">' + (d.accountsNote || 'not connected') + '</div>';
+        return;
+      }
       const w = Math.max(1.5, (s.n / top) * 100);
       html += '<div class="step"><div class="nm">' + s.name + '</div>'
             + '<div class="bar"><div class="fill" style="width:' + w + '%"></div></div>'
             + '<div class="n">' + int(s.n) + '</div></div>';
-      if (i < d.steps.length - 1){
-        const nxt = d.steps[i+1];
-        html += '<div class="conv">' + pct(nxt.n / (s.n || 1)) + ' to ' + nxt.name.toLowerCase() + '</div>';
+      const nxt = steps[i+1];
+      if (nxt && nxt.n != null && s.n){
+        html += '<div class="conv">' + pct(nxt.n / s.n) + ' to ' + nxt.name.toLowerCase() + '</div>';
       }
     });
-    el.innerHTML = html + '</div>';
+    html += '</div>';
+
+    if (d.inTrial != null){
+      html += '<table style="margin-top:14px"><tbody>'
+        + '<tr><td class="dim">In trial right now</td><td class="r num">' + int(d.inTrial) + '</td></tr>'
+        + '<tr><td class="dim">Left during the trial</td><td class="r num">' + int(d.lapsed) + '</td></tr>'
+        + '<tr><td class="dim">Trial to paid</td><td class="r num">'
+        + (d.conversion == null ? 'no one has finished yet' : pct(d.conversion)) + '</td></tr>'
+        + '</tbody></table>';
+    }
+    el.innerHTML = html;
   }
 
   function sparkline(series){
@@ -531,14 +552,15 @@ const DASH = (() => {
   const PLAYBOOK = [
     {
       name: 'Trial to paid',
-      get:  d => d.kpis && d.kpis.conv,
+      get:  d => d.funnel && d.funnel.conversion,
       show: v => pct(v),
-      band: [0.15, 0.25],
-      why:  'For a self-serve 7 day trial, under 15% usually means people never reached the point where the product became useful. Above 25% is strong.',
+      band: [0.40, 0.60],
+      why:  'This trial takes a card up front, so the people in it have already decided to pay unless something stops them. That converts far higher than a no-card trial: 40 to 60% is normal, and under 40% means the product is losing people it had already won.',
       low: [
-        'Check how many trials logged a trade at all. If most logged none, this is onboarding, not price.',
-        'Seven days is short for a journal: a trader needs a week of trades before it shows them anything. Consider extending to 14 and comparing cohorts.',
-        'Email on day 2 and day 6. Day 6 is the one that converts, and most people have forgotten by then.'
+        'These people handed over a card and still left. That is not a pricing objection, it is the product failing to prove itself inside seven days.',
+        'Check how many logged a trade at all. A journal with nothing in it has shown them nothing, and day seven arrives with nothing to lose.',
+        'Email on day 2 and day 6. Day 6 is the one that converts, because that is when the charge stops being hypothetical.',
+        'Seven days is short for a journal: a trader needs a week of trades before it can show them a pattern. Compare a 14 day cohort before assuming the price is wrong.'
       ],
       high: [
         'Conversion is healthy, so the constraint is upstream. Put the effort into trial volume rather than the funnel.'
@@ -561,30 +583,34 @@ const DASH = (() => {
       ]
     },
     {
-      name: 'Signup to trial',
-      get:  d => d.funnel && d.funnel.steps[1] && (d.funnel.steps[2].n / d.funnel.steps[1].n),
+      name: 'Account to trial',
+      get:  d => (d.funnel && d.funnel.accounts) ? d.funnel.everStarted / d.funnel.accounts : null,
       show: v => pct(v),
-      band: [0.45, 0.7],
-      why:  'People who make an account but never start the trial got stuck between the two. That gap is almost always friction you can delete.',
+      band: [0.40, 0.65],
+      why:  'Everyone here made an account and then had to enter a card to start the trial. Whatever share does not is the single biggest leak in the funnel, and it is friction rather than disinterest: they had already signed up.',
       low: [
-        'Count the steps between account created and trial started. Every one that is not strictly required should go.',
-        'Check whether the trial asks for a card. If it does, that is likely the whole gap, and it is the single biggest lever here.',
-        'Start the trial automatically on signup rather than asking for a second action.'
+        'Count the steps between account created and card entered. Every one that is not strictly required is costing you a trial.',
+        'Say what the card is for, in the place it is asked for. "Nothing is charged until day 8" belongs next to the field, not on a pricing page they already left.',
+        'Show the date they would first be charged rather than the length of the trial. A real date reassures where "7 days" reads as a countdown.',
+        'If signup and trial are two separate screens, try making them one.'
       ],
-      high: ['Little friction between signup and trial. Leave it alone.']
+      high: [
+        'Most people who sign up go on to start a trial, so the card is not the obstacle. Spend the effort further up, on getting more accounts.'
+      ]
     },
     {
-      name: 'Visitor to signup',
-      get:  d => d.funnel && (d.funnel.steps[1].n / d.funnel.steps[0].n),
+      name: 'Visitor to account',
+      get:  d => (d.traffic && d.traffic.sessions && d.funnel && d.funnel.accounts)
+                   ? d.funnel.accounts / d.traffic.sessions : null,
       show: v => pct(v),
       band: [0.03, 0.08],
-      why:  'Under 3% from a warm audience that already follows you is a landing page problem, not a traffic problem.',
+      why:  'Under 3% from an audience that already follows you is a landing page problem rather than a traffic problem. This traffic arrives warm.',
       low: [
-        'Your traffic is warm, not cold. It arrives already knowing who you are, so the page should answer "what do I get" not "who is this".',
-        'Check the mobile view first. Nearly all of this traffic is a phone coming from a bio link.',
+        'Your traffic is warm, not cold. It already knows who you are, so the page should answer "what do I get" and not "who is this".',
+        'Check the mobile view first. Almost all of this is a phone arriving from a bio link.',
         'One call to action above the fold. If there are two, there is none.'
       ],
-      high: ['The page converts the traffic it gets. More traffic is now the lever.']
+      high: ['The page converts the traffic it gets. More traffic is the lever now.']
     }
   ];
 
@@ -683,6 +709,17 @@ const DASH = (() => {
 
   async function init(){
     $('refresh').addEventListener('click', refresh);
+
+    // ?preview renders the layout with the invented sample data and never calls
+    // dash-metrics, so it reaches no real figure and needs no sign-in. It exists
+    // because once the project is configured there is otherwise no way to look
+    // at the layout without logging in, which makes checking a design change
+    // awkward. It is not a way in: SAMPLE short-circuits every fetch.
+    if (location.search.indexOf('preview') !== -1){
+      SAMPLE = true;
+      showApp();
+      return;
+    }
 
     if (!CONFIG.supabaseUrl || !CONFIG.supabaseAnonKey){
       // No project yet. Rather than a login that cannot work, say what is missing.

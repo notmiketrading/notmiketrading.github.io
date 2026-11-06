@@ -92,6 +92,51 @@ async function couponRedemptions(): Promise<number | null> {
   } catch { return null; }
 }
 
+// ----------------------------------------------------------- trial funnel ---
+// Killzonda's trial takes a card at the start, so "signed up" and "started a
+// trial" are two different events with a real gap between them. That gap is
+// the number worth watching, and Stripe can only see the second one: a person
+// who made an account and never entered a card has no Stripe record at all.
+// So accounts come from Killzonda and the rest comes from here.
+async function trialPanel(): Promise<Panel> {
+  if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
+
+  const now = Math.floor(Date.now() / 1000);
+  const trialing = await stripe("subscriptions?status=trialing&limit=100");
+  const active = await stripe("subscriptions?status=active&limit=100");
+  const gone = await stripe("subscriptions?status=canceled&limit=100");
+
+  const inTrial = (trialing.data ?? []).length;
+
+  // An active subscription whose trial_end has passed converted.
+  const converted = (active.data ?? [])
+    .filter((x: { trial_end?: number }) => x.trial_end && x.trial_end < now).length;
+
+  // Cancelled on or before the trial ended: they decided during the seven days.
+  // canceled_at is when they asked, which is the decision we care about, not
+  // ended_at, which is usually just trial_end for these.
+  const lapsed = (gone.data ?? [])
+    .filter((x: { trial_end?: number; canceled_at?: number }) =>
+      x.trial_end && x.canceled_at && x.canceled_at <= x.trial_end).length;
+
+  const decided = converted + lapsed;
+
+  return {
+    ok: true,
+    data: {
+      inTrial,
+      converted,
+      lapsed,
+      everStarted: inTrial + converted + lapsed,
+      // Only over people whose seven days are actually up. Counting those still
+      // inside their trial as failures would understate this every single day.
+      conversion: decided ? converted / decided : null,
+      accounts: null,
+      accountsNote: "Accounts come from Killzonda, which is not connected yet.",
+    },
+  };
+}
+
 async function revenuePanel(): Promise<Panel> {
   if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
 
@@ -166,8 +211,7 @@ Deno.serve(async (req) => {
 
     await Promise.all([
       gather("revenue", revenuePanel),
-      gather("funnel", async () =>
-        waiting("Tell Claude your Killzonda table names for users, trials and subscriptions.")),
+      gather("funnel", trialPanel),
       gather("traffic", async () =>
         waiting("Needs a GA4 service account and GA4_PROPERTY_ID in this function's secrets.")),
       // Four platforms, not five. X is left out on purpose: reading your own
