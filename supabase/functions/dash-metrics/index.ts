@@ -237,6 +237,115 @@ async function youtubePanel(): Promise<Panel> {
   };
 }
 
+// ------------------------------------------------------------------- GA4 ---
+// Reads the GA4 property that already exists on killzonda.com. Nothing about
+// the tracking changes and no tag is added; this only asks Google for numbers
+// it has already collected.
+//
+// A service account rather than an API key, because the Data API will not take
+// a key. That means signing a JWT with the account's private key and trading
+// it for an access token, which is the whole of gaToken below. Deno has
+// WebCrypto, so this needs no library.
+//
+// Note for later: GA4_PROPERTY_ID is the numeric property id, not the
+// G-XXXXXXX measurement id. They are different things on different screens and
+// the API only accepts the number.
+const b64url = (b: ArrayBuffer | Uint8Array) =>
+  btoa(String.fromCharCode(...new Uint8Array(b)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+async function gaToken(saRaw: string): Promise<string> {
+  let sa: { client_email?: string; private_key?: string };
+  try { sa = JSON.parse(saRaw); }
+  catch { throw new Error("GA_SERVICE_ACCOUNT is not valid JSON. Paste the whole downloaded file."); }
+  if (!sa.client_email || !sa.private_key) {
+    throw new Error("GA_SERVICE_ACCOUNT is missing client_email or private_key.");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const enc = (o: unknown) =>
+    b64url(new TextEncoder().encode(JSON.stringify(o)));
+
+  const unsigned =
+    enc({ alg: "RS256", typ: "JWT" }) + "." +
+    enc({
+      iss: sa.client_email,
+      scope: "https://www.googleapis.com/auth/analytics.readonly",
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+    });
+
+  const pem = sa.private_key.replace(/-----[^-]+-----/g, "").replace(/\s/g, "");
+  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    "pkcs8", der,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned),
+  );
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: unsigned + "." + b64url(sig),
+    }),
+  });
+  if (!res.ok) {
+    throw new Error("Google refused the service account: " + (await res.text()).slice(0, 140));
+  }
+  return (await res.json()).access_token;
+}
+
+async function trafficPanel(): Promise<Panel> {
+  const sa = Deno.env.get("GA_SERVICE_ACCOUNT") ?? "";
+  const prop = (Deno.env.get("GA4_PROPERTY_ID") ?? "").trim();
+  if (!sa || !prop) {
+    return waiting("Needs GA_SERVICE_ACCOUNT and GA4_PROPERTY_ID in this function's secrets.");
+  }
+  if (/^G-/i.test(prop)) {
+    return waiting("GA4_PROPERTY_ID is the numeric property id, not the G-XXXXXXX measurement id.");
+  }
+
+  const token = await gaToken(sa);
+  const res = await fetch(
+    "https://analyticsdata.googleapis.com/v1beta/properties/" + prop + ":runReport",
+    {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+        dimensions: [{ name: "sessionSource" }],
+        metrics: [{ name: "sessions" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 8,
+      }),
+    },
+  );
+  if (!res.ok) {
+    const body = (await res.text()).slice(0, 180);
+    if (res.status === 403) {
+      throw new Error("The service account has no access to that property. Add its email as a Viewer in GA4 Admin.");
+    }
+    throw new Error("GA4 " + res.status + ": " + body);
+  }
+
+  const body = await res.json();
+  const rows = (body.rows ?? []).map((r: { dimensionValues: { value: string }[]; metricValues: { value: string }[] }) => ({
+    src: r.dimensionValues?.[0]?.value || "(none)",
+    n: Number(r.metricValues?.[0]?.value ?? 0),
+  }));
+
+  return {
+    ok: true,
+    data: { sessions: rows.reduce((a: number, r: { n: number }) => a + r.n, 0), rows },
+  };
+}
+
 async function revenuePanel(): Promise<Panel> {
   if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
 
@@ -338,8 +447,7 @@ Deno.serve(async (req) => {
     await Promise.all([
       gather("revenue", revenuePanel),
       gather("funnel", trialPanel),
-      gather("traffic", async () =>
-        waiting("Needs a GA4 service account and GA4_PROPERTY_ID in this function's secrets.")),
+      gather("traffic", trafficPanel),
       // Four platforms, not five. X is left out on purpose: reading your own
       // analytics there needs their paid tier, and a panel that silently shows
       // nothing is worse than one that was never promised.
