@@ -346,8 +346,15 @@ const DASH = (() => {
     const { data:{ session } } = await sb.auth.getSession();
     if (!session) return { ok:false, locked:false, reason:'No session.' };
 
+    // Both headers are required, and they do different jobs. apikey gets past
+    // the project gateway and says which project this is; Authorization carries
+    // the signed-in user, which is what the function checks against ADMIN_EMAIL.
+    // Sending only the second returns 401 before the function ever runs.
     const res = await fetch(CONFIG.supabaseUrl + '/functions/v1/dash-metrics', {
-      headers: { Authorization: 'Bearer ' + session.access_token }
+      headers: {
+        apikey: CONFIG.supabaseAnonKey,
+        Authorization: 'Bearer ' + session.access_token
+      }
     });
 
     if (res.status === 403) return { ok:false, locked:true };
@@ -694,8 +701,10 @@ const DASH = (() => {
       const email = $('email').value.trim();
       if (!email) return;
       $('sendLink').disabled = true;
+      // shouldCreateUser:false matches the project, where signups are off. It
+      // turns a confusing "signups not allowed" into a plain unknown-address.
       const { error } = await sb.auth.signInWithOtp({
-        email, options: { emailRedirectTo: window.location.href }
+        email, options: { emailRedirectTo: window.location.href, shouldCreateUser: false }
       });
       $('sendLink').disabled = false;
       if (error) showGate(error.message, 'err');
