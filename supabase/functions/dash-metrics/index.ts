@@ -137,6 +137,35 @@ async function trialPanel(): Promise<Panel> {
   };
 }
 
+// Lifetime revenue. MRR is what recurs; this is what has actually arrived, so
+// it comes from charges rather than subscriptions and needs Charges: Read on
+// the restricted key. Refunds are subtracted. Stripe pages at 100, so this
+// walks them, with a ceiling: at some volume this stops being a thing you do
+// on a dashboard request, and reporting a truncated figure as if it were the
+// whole would be worse than saying so.
+async function totalRevenue(): Promise<{ cents: number; complete: boolean }> {
+  let cents = 0;
+  let after: string | null = null;
+  let complete = false;
+
+  for (let page = 0; page < 20; page++) {
+    const q: string = "charges?limit=100" + (after ? "&starting_after=" + after : "");
+    const batch = await stripe(q);
+    const rows = batch.data ?? [];
+
+    for (const c of rows) {
+      if (c.status === "succeeded" && c.paid) {
+        cents += (c.amount ?? 0) - (c.amount_refunded ?? 0);
+      }
+    }
+
+    if (!batch.has_more || rows.length === 0) { complete = true; break; }
+    after = rows[rows.length - 1].id;
+  }
+
+  return { cents, complete };
+}
+
 async function revenuePanel(): Promise<Panel> {
   if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
 
@@ -154,12 +183,30 @@ async function revenuePanel(): Promise<Panel> {
   const subs = (active.data ?? []).length;
   const base = subs + lost;
 
+  // Lifetime revenue is a separate question from MRR and a separate Stripe
+  // permission. If the key cannot read charges, say so on that figure alone
+  // rather than failing the whole panel.
+  let total: number | null = null;
+  let totalComplete = true;
+  try {
+    const t = await totalRevenue();
+    total = t.cents / 100;
+    totalComplete = t.complete;
+  } catch {
+    total = null;
+  }
+
   return {
     ok: true,
     data: {
       mrr: cents / 100,
+      total,
+      totalComplete,
       subs,
       trials: (trialing.data ?? []).length,
+      // Kept in the payload though the panel no longer shows them: the
+      // playbook reads churn, and dropping it from the display should not
+      // quietly disable a rule.
       arpu: subs ? cents / 100 / subs : null,
       churn: base ? lost / base : null,
       coupon: await couponRedemptions(),

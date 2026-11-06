@@ -193,6 +193,9 @@
   .job.soon .jn{color:var(--warn-ink);}
   .job.calm .jn{color:var(--text-3);}
 
+  .bigfig{font-family:var(--tight);font-weight:800;font-size:42px;letter-spacing:-0.04em;line-height:1;}
+  .bigsub{margin-top:7px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--text-3);}
+
   .cal{display:flex;flex-direction:column;gap:2px;}
   .ev{display:grid;grid-template-columns:62px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--line-soft);}
   .ev:first-child{border-top:0;}
@@ -368,9 +371,9 @@ const DASH = (() => {
      Deliberately rounded and unremarkable so nobody mistakes them for real
      readings. They exist to size the layout. */
   const SAMPLES = {
-    kpis: { mrr:1840, mrrPrev:1610, subs:92, subsPrev:84, trials:31, trialsPrev:36, conv:0.23, convPrev:0.19 },
-    funnel: { accounts:260, everStarted:140, converted:74, inTrial:22, lapsed:44, conversion:0.627 },
-    revenue: { series:[1180,1250,1240,1390,1455,1520,1610,1840], churn:0.058, arpu:20.0, coupon:14 },
+    kpis: { total:24760, totalComplete:true, mrr:1840, subs:92, subsPrev:84, trials:31, trialsPrev:36, conv:0.627, convPrev:0.58 },
+    funnel: { everStarted:140, converted:74, inTrial:22, lapsed:44, conversion:0.627 },
+    revenue: { mrr:1840, total:24760, totalComplete:true, series:[1180,1250,1240,1390,1455,1520,1610,1840], churn:0.058, arpu:20.0, coupon:14 },
     traffic: { sessions:4200, rows:[
       {src:'tiktok',          n:1680},
       {src:'instagram',       n:980},
@@ -421,7 +424,7 @@ const DASH = (() => {
 
   function renderKpis(d){
     const cards = [
-      { k:'MRR',            v: d ? money(d.mrr)   : null, d: d ? delta(d.mrr, d.mrrPrev) : '', sub:'vs last month' },
+      { k:'Total revenue',  v: d ? money(d.total) : null, d: '', sub: d && d.totalComplete === false ? 'first 2000 charges' : 'all time, net of refunds' },
       { k:'Active subs',    v: d ? int(d.subs)    : null, d: d ? delta(d.subs, d.subsPrev) : '', sub:'vs last month' },
       { k:'Trials running', v: d ? int(d.trials)  : null, d: d ? delta(d.trials, d.trialsPrev) : '', sub:'7 day window' },
       { k:'Trial to paid',  v: d ? pct(d.conv)    : null, d: d ? delta(d.conv, d.convPrev) : '', sub:'last 30 days' }
@@ -438,8 +441,11 @@ const DASH = (() => {
 
     // Three states, because the trial takes a card: an account is not a trial,
     // and the drop between them is the number worth seeing.
+    // Accounts used to head this list, but it can only come from Killzonda and
+    // that is not connected, so it was a permanent question mark. Removed
+    // rather than left as furniture. The account-to-trial rule in the playbook
+    // stays and simply does not fire until accounts exist.
     const steps = [
-      { name:'Accounts',      n: d.accounts },
       { name:'Trial started', n: d.everStarted },
       { name:'Paid',          n: d.converted }
     ];
@@ -495,12 +501,12 @@ const DASH = (() => {
 
   function renderRevenue(el, d){
     $('dot-revenue').className = 'dot live';
-    el.innerHTML = sparkline(d.series)
-      + '<table style="margin-top:12px"><tbody>'
-      + '<tr><td class="dim">Monthly churn</td><td class="r num">' + pct(d.churn) + '</td></tr>'
-      + '<tr><td class="dim">ARPU</td><td class="r num">' + money(d.arpu) + '</td></tr>'
-      + '<tr><td class="dim">NMT redemptions</td><td class="r num">' + int(d.coupon) + '</td></tr>'
-      + '</tbody></table>';
+    // MRR alone. Churn, ARPU and the coupon count still travel in the payload
+    // because the playbook reads them; they are simply not shown here.
+    el.innerHTML =
+      '<div class="bigfig">' + (d.mrr == null ? 'no data' : money(d.mrr)) + '</div>'
+      + '<div class="bigsub">monthly recurring</div>'
+      + sparkline(d.series);
   }
 
   function renderTraffic(el, d){
@@ -684,6 +690,7 @@ const DASH = (() => {
 
     // The tiles are a view of the revenue panel, so they share its fate.
     renderKpis(rev ? {
+      total: rev.total, totalComplete: rev.totalComplete,
       mrr: rev.mrr, mrrPrev: null,
       subs: rev.subs, subsPrev: null,
       trials: rev.trials, trialsPrev: null,
