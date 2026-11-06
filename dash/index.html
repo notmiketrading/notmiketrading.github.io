@@ -316,9 +316,11 @@ const CONFIG = {
   // nmt-control. A project of its own, in its own free organisation. Killzonda
   // is not referenced here and is not touched by anything on this page.
   supabaseUrl:     'https://mfthmscibqvylkcuxyyd.supabase.co',
-  // Decoded before it was committed: role "anon", so it is the publishable one
-  // and belongs in a public page. If this ever reads service_role, rotate it.
-  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mdGhtc2NpYnF2eWxrY3V4eXlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODUxMTgsImV4cCI6MjEwOTU2MTExOH0.iVX-jQ6rjJJkQwA7dt69HiWelxti2nDyhy5ekWQT4SQ',
+  // The publishable key, which is the format this gateway accepts. The legacy
+  // anon JWT that was here worked for Auth but Functions refused it: "the
+  // apikey header matched no key configured for auth mode(s): publishable,
+  // secret". Publishable keys are designed to sit in public pages.
+  supabaseAnonKey: 'sb_publishable_UIqGpexh1OAwU3RuzoB9fg_VuNFD1_x',
   googleClientId:  ''    // OAuth web client id, for the calendar. Later.
 };
 
