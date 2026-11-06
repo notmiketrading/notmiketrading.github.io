@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-7 ga4+youtube";
+const BUILD = "fn-9 yt only, ga msgs";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -192,10 +192,17 @@ async function totalRevenue(): Promise<{ cents: number; complete: boolean }> {
 }
 
 // ---------------------------------------------------------------- YouTube ---
-// The only one of the three socials that needs nothing but an API key. Public
-// channel statistics are public, so there is no OAuth dance, no app review and
-// no token to refresh. Instagram and TikTok both want an app and an approval,
-// which is why they are not here yet.
+// Instagram and TikTok were considered and dropped. Instagram needs a Meta app
+// and a token that lapses every 60 days; TikTok needs developer approval that
+// takes days and a token that lasts 24 hours. Both are ongoing maintenance in
+// exchange for a follower count, and Mike decided that trade was not worth it.
+// Leaving them as permanent "not connected" rows would have been clutter
+// pretending to be a roadmap, so they are gone rather than parked.
+const num = (x: unknown) => Number(x ?? 0).toLocaleString("en-US");
+
+// Public channel statistics are public, so this needs an API key and nothing
+// else: no OAuth, no app review, no token that ever has to be renewed. That is
+// the whole reason this one is here and the other two are not.
 async function youtubePanel(): Promise<Panel> {
   const key = Deno.env.get("YOUTUBE_API_KEY") ?? "";
   const channel = Deno.env.get("YOUTUBE_CHANNEL_ID") ?? "";
@@ -223,19 +230,8 @@ async function youtubePanel(): Promise<Panel> {
       rows: [
         {
           name: item.snippet?.title ?? "YouTube",
-          v: Number(st.subscriberCount ?? 0).toLocaleString("en-US") + " subs",
-          s: Number(st.viewCount ?? 0).toLocaleString("en-US") + " views across " +
-             Number(st.videoCount ?? 0).toLocaleString("en-US") + " videos",
-        },
-        {
-          name: "Instagram",
-          v: "not connected",
-          s: "needs a Facebook app linked to the business account",
-        },
-        {
-          name: "TikTok",
-          v: "not connected",
-          s: "needs a developer app and their approval",
+          v: num(st.subscriberCount) + " subs",
+          s: num(st.viewCount) + " views across " + num(st.videoCount) + " videos",
         },
       ],
     },
@@ -260,11 +256,31 @@ const b64url = (b: ArrayBuffer | Uint8Array) =>
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
 async function gaToken(saRaw: string): Promise<string> {
-  let sa: { client_email?: string; private_key?: string };
+  let sa: { type?: string; client_email?: string; private_key?: string };
   try { sa = JSON.parse(saRaw); }
-  catch { throw new Error("GA_SERVICE_ACCOUNT is not valid JSON. Paste the whole downloaded file."); }
+  catch {
+    throw new Error("GA_SERVICE_ACCOUNT is not valid JSON. Paste the whole downloaded file, braces included.");
+  }
+
+  // Naming the fields it DOES have identifies which file was pasted. Google
+  // hands out several JSONs from the same screens and only one of them works
+  // here; "missing client_email" alone does not say which one you grabbed.
+  // Key names are structure, not secrets, so this reveals nothing.
+  const got = Object.keys(sa);
+  if (got.includes("web") || got.includes("installed")) {
+    throw new Error(
+      "That is an OAuth client file, not a service account key. Create a Service Account, " +
+      "then Keys > Add key > JSON, and paste that one instead.",
+    );
+  }
+  if (sa.type && sa.type !== "service_account") {
+    throw new Error('Wrong kind of credential: type is "' + sa.type + '", it needs to be "service_account".');
+  }
   if (!sa.client_email || !sa.private_key) {
-    throw new Error("GA_SERVICE_ACCOUNT is missing client_email or private_key.");
+    throw new Error(
+      "Not a service account key. Its top level fields are: " + got.join(", ") +
+      ". The right file has client_email and private_key.",
+    );
   }
 
   const now = Math.floor(Date.now() / 1000);
