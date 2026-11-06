@@ -680,8 +680,20 @@ const DASH = (() => {
     $('gateNote').textContent = 'This account cannot view the dashboard.';
   }
 
+  let refreshing = false;
+
   async function refresh(){
-    $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    // getSession() and onAuthStateChange both land on showApp(), so this can be
+    // entered twice at once. Harmless for the panels, which just render twice,
+    // but the stamp was built by appending and came out duplicated.
+    if (refreshing) return;
+    refreshing = true;
+    try { await doRefresh(); } finally { refreshing = false; }
+  }
+
+  async function doRefresh(){
+    const clock = 'Updated ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    $('stamp').textContent = clock;
     $('sampleBanner').classList.toggle('hide', !SAMPLE);
 
     const panels = [
@@ -712,7 +724,9 @@ const DASH = (() => {
     // diagnosable by comparing the wording of error messages.
     if (res.build){
       const missing = Object.keys(res.secrets || {}).filter(k => !res.secrets[k]);
-      $('stamp').textContent = $('stamp').textContent + '  ·  ' + res.build
+      // Built in one assignment. Appending to whatever is already there is how
+      // this managed to print itself twice.
+      $('stamp').textContent = clock + '  ·  ' + res.build
         + (missing.length ? '  ·  missing: ' + missing.join(', ') : '  ·  all secrets set');
     }
 
