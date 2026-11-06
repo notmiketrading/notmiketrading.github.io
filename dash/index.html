@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>NMT Control</title>
+<!-- Not linked from anywhere and kept out of search. The security is the auth below, not this
+     tag and not the URL being obscure. No robots.txt rule either: a Disallow line would publish
+     the path to anyone who reads it. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1A1A1A">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+<style>
+  /* Same tokens as the public page, so the two read as one property. */
+  :root{
+    color-scheme:dark;
+    --char:#1A1A1A; --char-2:#212121; --char-3:#292929;
+    --line:rgba(255,255,255,0.07); --line-soft:rgba(255,255,255,0.045);
+    --text:#ECEEF2; --text-2:#A7AEBA; --text-3:#828A97;
+    --blue:#2962FF; --blue-ink:#6E9BFF; --blue-dim:rgba(41,98,255,0.16);
+    --good:#3FB950; --good-ink:#56D364;
+    --warn:#D29922; --warn-ink:#E3B341;
+    --bad:#F85149; --bad-ink:#FF7B72;
+    --sans:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --tight:'Inter Tight',Inter,-apple-system,sans-serif;
+    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+    --ease:cubic-bezier(0.4,0,0.2,1);
+    --ease-out:cubic-bezier(0.33,1,0.68,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    background:
+      radial-gradient(130% 70% at 50% -12%, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0) 58%),
+      var(--char);
+    background-attachment:fixed;
+    color:var(--text); font-family:var(--sans); font-size:16px;
+    -webkit-font-smoothing:antialiased; min-height:100svh; overflow-x:hidden;
+  }
+  ::selection{background:rgba(41,98,255,0.35);}
+  svg{display:block;}
+  .nap{
+    position:fixed;inset:0;z-index:9;pointer-events:none;opacity:0.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size:160px 160px;
+  }
+
+  /* ---------- gate ---------- */
+  .gate{min-height:100svh;display:grid;place-items:center;padding:24px;}
+  .gate-card{
+    width:100%;max-width:380px;background:var(--char-2);
+    border:1px solid var(--line);border-radius:16px;padding:28px;
+    box-shadow:0 1px 2px rgba(0,0,0,.4),0 18px 44px rgba(0,0,0,.4);
+  }
+  .gate h1{font-family:var(--tight);font-weight:800;font-size:23px;letter-spacing:-0.03em;}
+  .gate .sub{margin-top:7px;font-size:13.5px;line-height:1.5;color:var(--text-3);}
+  .field{margin-top:20px;}
+  .field label{display:block;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);margin-bottom:7px;}
+  input[type=email]{
+    width:100%;padding:11px 13px;border-radius:9px;background:var(--char);
+    border:1px solid var(--line);color:var(--text);font:inherit;font-size:14.5px;
+  }
+  input[type=email]:focus{outline:none;border-color:var(--blue);}
+  .btn{
+    width:100%;margin-top:14px;padding:11px 16px;border:0;border-radius:9px;
+    background:var(--blue);color:#fff;font:inherit;font-size:14.5px;font-weight:600;
+    cursor:pointer;transition:filter 160ms var(--ease);
+  }
+  .btn:hover{filter:brightness(1.12);}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .note{margin-top:14px;font-size:12.5px;line-height:1.5;color:var(--text-3);}
+  .note.ok{color:var(--good-ink);}
+  .note.err{color:var(--bad-ink);}
+
+  /* ---------- shell ---------- */
+  .wrap{position:relative;max-width:1180px;margin:0 auto;padding:28px 24px 72px;}
+  .top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:8px;}
+  .brand{font-family:var(--tight);font-weight:800;font-size:21px;letter-spacing:-0.03em;}
+  .brand span{color:var(--blue-ink);}
+  .top .spacer{flex:1 1 auto;}
+  .stamp{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--text-3);}
+  .ghost{
+    padding:7px 12px;border-radius:8px;background:transparent;border:1px solid var(--line);
+    color:var(--text-2);font:inherit;font-size:12.5px;cursor:pointer;
+    transition:border-color 160ms var(--ease),color 160ms var(--ease);
+  }
+  .ghost:hover{border-color:var(--blue);color:var(--text);}
+
+  .banner{
+    display:flex;gap:11px;align-items:flex-start;
+    margin:16px 0 24px;padding:13px 15px;border-radius:11px;
+    background:rgba(210,153,34,.10);border:1px solid rgba(210,153,34,.35);
+    font-size:13px;line-height:1.5;color:var(--warn-ink);
+  }
+  .banner b{color:#F2CC60;}
+  .banner.hide{display:none;}
+
+  /* ---------- tiles ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
+  .kpi{
+    background:var(--char-2);border:1px solid var(--line);border-radius:13px;padding:16px 17px;
+    box-shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+  .kpi .k{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--text-3);}
+  .kpi .v{font-family:var(--tight);font-weight:800;font-size:31px;letter-spacing:-0.035em;line-height:1.1;margin-top:9px;}
+  .kpi .v.empty{color:var(--text-3);font-size:19px;letter-spacing:-0.02em;}
+  .kpi .d{margin-top:6px;font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:6px;}
+  .pill{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;letter-spacing:.04em;}
+  .pill.up{color:var(--good-ink);background:rgba(63,185,80,.14);}
+  .pill.down{color:var(--bad-ink);background:rgba(248,81,73,.14);}
+  .pill.flat{color:var(--text-3);background:rgba(255,255,255,.06);}
+
+  /* ---------- panels ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;}
+  .panel{
+    background:var(--char-2);border:1px solid var(--line);border-radius:13px;
+    box-shadow:0 1px 2px rgba(0,0,0,.3);display:flex;flex-direction:column;min-height:200px;
+  }
+  .panel.wide{grid-column:1 / -1;}
+  .phead{display:flex;align-items:center;gap:10px;padding:14px 17px;border-bottom:1px solid var(--line-soft);}
+  .phead h2{font-size:14.5px;font-weight:600;letter-spacing:-0.012em;}
+  .phead .src{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-3);margin-left:auto;}
+  .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--text-3);}
+  .dot.live{background:var(--good);}
+  .dot.off{background:var(--text-3);}
+  .dot.err{background:var(--bad);}
+  .pbody{padding:16px 17px;flex:1 1 auto;}
+
+  .offstate{display:flex;flex-direction:column;justify-content:center;height:100%;min-height:120px;gap:9px;}
+  .offstate .t{font-size:13.5px;font-weight:600;color:var(--text-2);}
+  .offstate .m{font-size:12.5px;line-height:1.55;color:var(--text-3);}
+  .offstate code{font-family:var(--mono);font-size:11.5px;background:var(--char);border:1px solid var(--line);padding:1px 5px;border-radius:4px;color:var(--blue-ink);}
+
+  table{width:100%;border-collapse:collapse;}
+  th{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:0 0 9px;}
+  th.r,td.r{text-align:right;}
+  td{padding:8px 0;font-size:13.5px;border-top:1px solid var(--line-soft);}
+  td.dim{color:var(--text-3);}
+  td.num{font-family:var(--mono);font-size:12.5px;}
+
+  /* funnel */
+  .funnel{display:flex;flex-direction:column;gap:11px;}
+  .step{display:grid;grid-template-columns:118px 1fr 60px;align-items:center;gap:12px;}
+  .step .nm{font-size:13px;color:var(--text-2);}
+  .step .bar{height:26px;border-radius:6px;background:var(--char-3);overflow:hidden;}
+  .step .fill{height:100%;background:linear-gradient(90deg,var(--blue),#5B86FF);border-radius:6px;}
+  .step .n{font-family:var(--mono);font-size:12.5px;text-align:right;}
+  .conv{font-family:var(--mono);font-size:10.5px;color:var(--text-3);padding-left:130px;margin-top:-5px;}
+
+  /* sparkline */
+  .spark{width:100%;height:62px;}
+  .spark path.line{fill:none;stroke:var(--blue-ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+  .spark path.area{fill:url(#sparkfill);stroke:none;}
+
+  /* playbook */
+  .play{display:flex;flex-direction:column;gap:11px;}
+  .act{border:1px solid var(--line);border-radius:11px;padding:14px 15px;background:var(--char);}
+  .act.is-bad{border-color:rgba(248,81,73,.34);}
+  .act.is-warn{border-color:rgba(210,153,34,.34);}
+  .act.is-good{border-color:rgba(63,185,80,.26);}
+  .act .h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;}
+  .act .mname{font-size:13.5px;font-weight:600;}
+  .act .mval{font-family:var(--mono);font-size:12.5px;color:var(--text-2);}
+  .act .tag{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:2px 6px;border-radius:5px;margin-left:auto;}
+  .act.is-bad .tag{color:var(--bad-ink);background:rgba(248,81,73,.14);}
+  .act.is-warn .tag{color:var(--warn-ink);background:rgba(210,153,34,.14);}
+  .act.is-good .tag{color:var(--good-ink);background:rgba(63,185,80,.14);}
+  .act ul{margin:10px 0 0 17px;}
+  .act li{font-size:12.5px;line-height:1.6;color:var(--text-2);margin-bottom:5px;}
+  .act .why{margin-top:9px;font-size:12px;line-height:1.55;color:var(--text-3);}
+
+  .cal{display:flex;flex-direction:column;gap:2px;}
+  .ev{display:grid;grid-template-columns:62px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--line-soft);}
+  .ev:first-child{border-top:0;}
+  .ev .tm{font-family:var(--mono);font-size:11.5px;color:var(--blue-ink);padding-top:1px;}
+  .ev .ti{font-size:13.5px;}
+  .ev .dy{font-size:11.5px;color:var(--text-3);margin-top:2px;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:560px){
+    .wrap{padding:20px 16px 56px;}
+    .kpi .v{font-size:27px;}
+    .step{grid-template-columns:92px 1fr 48px;}
+    .conv{padding-left:104px;}
+  }
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important;} }
+</style>
+</head>
+
+<body>
+
+<!-- ================= gate ================= -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <h1>NMT Control</h1>
+    <p class="sub" id="gateSub">Sign in to continue.</p>
+
+    <div id="gateForm">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="email" placeholder="you@example.com" spellcheck="false">
+      </div>
+      <button class="btn" id="sendLink">Email me a sign in link</button>
+    </div>
+
+    <p class="note" id="gateNote"></p>
+  </div>
+</div>
+
+<!-- ================= dashboard ================= -->
+<div class="wrap hidden" id="app">
+  <div class="top">
+    <div class="brand">NMT <span>Control</span></div>
+    <div class="spacer"></div>
+    <div class="stamp" id="stamp"></div>
+    <button class="ghost" id="refresh">Refresh</button>
+    <button class="ghost" id="signout">Sign out</button>
+  </div>
+
+  <div class="banner" id="sampleBanner">
+    <div>
+      <b>SAMPLE DATA.</b> Nothing is connected yet, so every figure on this page is invented and
+      exists only so the layout can be judged. Do not read anything into it. Each panel names the
+      source it is waiting for. Real numbers replace these the moment a source is wired up.
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="panel wide">
+      <div class="phead"><span class="dot" id="dot-funnel"></span><h2>Funnel</h2><span class="src" id="src-funnel">Supabase + Stripe</span></div>
+      <div class="pbody" id="p-funnel"></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><span class="dot" id="dot-revenue"></span><h2>Revenue</h2><span class="src">Stripe</span></div>
+      <div class="pbody" id="p-revenue"></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><span class="dot" id="dot-traffic"></span><h2>Traffic</h2><span class="src">GA4</span></div>
+      <div class="pbody" id="p-traffic"></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><span class="dot" id="dot-grok"></span><h2>GrokBot</h2><span class="src">GrokBot</span></div>
+      <div class="pbody" id="p-grok"></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><span class="dot" id="dot-cal"></span><h2>Calendar</h2><span class="src">Google</span></div>
+      <div class="pbody" id="p-cal"></div>
+    </div>
+
+    <div class="panel wide">
+      <div class="phead"><span class="dot live"></span><h2>What to do next</h2><span class="src">Playbook</span></div>
+      <div class="pbody"><div class="play" id="p-play"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="nap" aria-hidden="true"></div>
+
+<script>
+/* ===========================================================================
+   CONFIG
+
+   Every value here is safe to be public and safe in this repo. The Supabase
+   anon key is designed to sit in a browser: it grants nothing on its own and
+   Row Level Security decides what it can read. The Google client id and the
+   GA4 property id are public identifiers too.
+
+   Nothing secret belongs on this page. Stripe secret keys, the Supabase
+   service_role key and Google service account credentials go into Supabase
+   Edge Function secrets, and this page calls those functions. Anyone can read
+   this file, so treat anything written here as published.
+   =========================================================================== */
+const CONFIG = {
+  supabaseUrl:     '',   // https://xxxxxxxx.supabase.co
+  supabaseAnonKey: '',   // the anon / publishable key, not service_role
+  allowedEmail:    '',   // your email. See the note on enforcement below.
+  googleClientId:  '',   // OAuth web client id, for the calendar
+  ga4PropertyId:   ''    // numeric GA4 property id
+};
+
+/* The allowlist below is a convenience, not a security control: it runs in the
+   browser and anyone can edit it. What actually keeps other people out is
+   Supabase: turn off public signups, and write RLS policies so rows are only
+   readable by your user id. Do that before any real data lands here. */
+
+const DASH = (() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const configured = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey);
+  let sb = null, SAMPLE = true;
+
+  /* ---------- formatting ---------- */
+  const money = n => n == null ? null : '$' + Math.round(n).toLocaleString('en-US');
+  const pct   = n => n == null ? null : (n * 100).toFixed(1) + '%';
+  const int   = n => n == null ? null : Math.round(n).toLocaleString('en-US');
+
+  /* ---------- adapters ----------
+     Each returns {ok:true, data} or {ok:false, reason, needs}. None of them
+     invents anything: if a source is not wired up it says so and the panel
+     renders an off state naming what it is waiting for. Sample data is a
+     separate, clearly labelled path. */
+  const SOURCES = {
+    funnel:  { needs: 'Supabase tables for signups and trials, plus Stripe for conversions.' },
+    revenue: { needs: 'A Supabase Edge Function holding a restricted Stripe read key.' },
+    traffic: { needs: 'An Edge Function calling the GA4 Data API for property ' + (CONFIG.ga4PropertyId || '(unset)') + '.' },
+    grok:    { needs: 'Whatever GrokBot exposes. Tell me what its API looks like and I will wire it.' },
+    cal:     { needs: 'A Google OAuth client id in CONFIG, with Calendar read scope.' }
+  };
+
+  async function load(name){
+    if (SAMPLE) return { ok:true, data: SAMPLES[name] };
+    return { ok:false, reason:'not-connected', needs: SOURCES[name].needs };
+  }
+
+  /* ---------- sample shapes ----------
+     Deliberately rounded and unremarkable so nobody mistakes them for real
+     readings. They exist to size the layout. */
+  const SAMPLES = {
+    kpis: { mrr:1840, mrrPrev:1610, subs:92, subsPrev:84, trials:31, trialsPrev:36, conv:0.23, convPrev:0.19 },
+    funnel: { steps:[
+      {name:'Visitors',  n:4200},
+      {name:'Signups',   n:260},
+      {name:'Trials',    n:140},
+      {name:'Paid',      n:32}
+    ]},
+    revenue: { series:[1180,1250,1240,1390,1455,1520,1610,1840], churn:0.058, arpu:20.0, coupon:14 },
+    traffic: { sessions:4200, rows:[
+      {src:'tiktok',          n:1680},
+      {src:'instagram',       n:980},
+      {src:'google / organic',n:720},
+      {src:'notmiketrading',  n:430},
+      {src:'x',               n:290}
+    ]},
+    grok: { rows:[
+      {k:'Bots running',   v:'3'},
+      {k:'Signals today',  v:'18'},
+      {k:'Win rate (30d)', v:'61%'},
+      {k:'Last heartbeat', v:'4 min ago'}
+    ]},
+    cal: { events:[
+      {t:'09:30', d:'Today',    s:'Market open, review overnight'},
+      {t:'14:00', d:'Today',    s:'Killzonda roadmap'},
+      {t:'11:00', d:'Tomorrow', s:'Record YouTube breakdown'}
+    ]}
+  };
+
+  /* ---------- renderers ---------- */
+  function offState(el, dotId, needs){
+    $(dotId).className = 'dot off';
+    el.innerHTML = '<div class="offstate">'
+      + '<div class="t">Not connected</div>'
+      + '<div class="m">' + needs + '</div></div>';
+  }
+
+  function delta(now, prev, invert){
+    if (now == null || prev == null || !prev) return '<span class="pill flat">no baseline</span>';
+    const d = (now - prev) / Math.abs(prev);
+    const better = invert ? d < 0 : d > 0;
+    const cls = Math.abs(d) < 0.005 ? 'flat' : (better ? 'up' : 'down');
+    const sign = d > 0 ? '+' : '';
+    return '<span class="pill ' + cls + '">' + sign + (d * 100).toFixed(1) + '%</span>';
+  }
+
+  function renderKpis(d){
+    const cards = [
+      { k:'MRR',            v: d ? money(d.mrr)   : null, d: d ? delta(d.mrr, d.mrrPrev) : '', sub:'vs last month' },
+      { k:'Active subs',    v: d ? int(d.subs)    : null, d: d ? delta(d.subs, d.subsPrev) : '', sub:'vs last month' },
+      { k:'Trials running', v: d ? int(d.trials)  : null, d: d ? delta(d.trials, d.trialsPrev) : '', sub:'7 day window' },
+      { k:'Trial to paid',  v: d ? pct(d.conv)    : null, d: d ? delta(d.conv, d.convPrev) : '', sub:'last 30 days' }
+    ];
+    $('kpis').innerHTML = cards.map(c =>
+      '<div class="kpi"><div class="k">' + c.k + '</div>'
+      + '<div class="v' + (c.v ? '' : ' empty') + '">' + (c.v || 'Not connected') + '</div>'
+      + '<div class="d">' + c.d + '<span>' + (c.v ? c.sub : '') + '</span></div></div>'
+    ).join('');
+  }
+
+  function renderFunnel(el, d){
+    $('dot-funnel').className = 'dot live';
+    const top = d.steps[0].n || 1;
+    let html = '<div class="funnel">';
+    d.steps.forEach((s, i) => {
+      const w = Math.max(1.5, (s.n / top) * 100);
+      html += '<div class="step"><div class="nm">' + s.name + '</div>'
+            + '<div class="bar"><div class="fill" style="width:' + w + '%"></div></div>'
+            + '<div class="n">' + int(s.n) + '</div></div>';
+      if (i < d.steps.length - 1){
+        const nxt = d.steps[i+1];
+        html += '<div class="conv">' + pct(nxt.n / (s.n || 1)) + ' to ' + nxt.name.toLowerCase() + '</div>';
+      }
+    });
+    el.innerHTML = html + '</div>';
+  }
+
+  function sparkline(series){
+    if (!series || series.length < 2) return '';
+    const w = 300, h = 62, pad = 4;
+    const min = Math.min(...series), max = Math.max(...series), span = (max - min) || 1;
+    const pts = series.map((v, i) => [
+      pad + (i / (series.length - 1)) * (w - pad * 2),
+      h - pad - ((v - min) / span) * (h - pad * 2)
+    ]);
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const area = line + ' L' + pts[pts.length-1][0].toFixed(1) + ',' + h + ' L' + pts[0][0].toFixed(1) + ',' + h + ' Z';
+    return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">'
+      + '<defs><linearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1">'
+      + '<stop offset="0%" stop-color="#2962FF" stop-opacity="0.30"/>'
+      + '<stop offset="100%" stop-color="#2962FF" stop-opacity="0"/></linearGradient></defs>'
+      + '<path class="area" d="' + area + '"/><path class="line" d="' + line + '"/></svg>';
+  }
+
+  function renderRevenue(el, d){
+    $('dot-revenue').className = 'dot live';
+    el.innerHTML = sparkline(d.series)
+      + '<table style="margin-top:12px"><tbody>'
+      + '<tr><td class="dim">Monthly churn</td><td class="r num">' + pct(d.churn) + '</td></tr>'
+      + '<tr><td class="dim">ARPU</td><td class="r num">' + money(d.arpu) + '</td></tr>'
+      + '<tr><td class="dim">NMT redemptions</td><td class="r num">' + int(d.coupon) + '</td></tr>'
+      + '</tbody></table>';
+  }
+
+  function renderTraffic(el, d){
+    $('dot-traffic').className = 'dot live';
+    el.innerHTML = '<table><thead><tr><th>Source</th><th class="r">Sessions</th></tr></thead><tbody>'
+      + d.rows.map(r => '<tr><td>' + r.src + '</td><td class="r num">' + int(r.n) + '</td></tr>').join('')
+      + '</tbody></table>';
+  }
+
+  function renderGrok(el, d){
+    $('dot-grok').className = 'dot live';
+    el.innerHTML = '<table><tbody>'
+      + d.rows.map(r => '<tr><td class="dim">' + r.k + '</td><td class="r num">' + r.v + '</td></tr>').join('')
+      + '</tbody></table>';
+  }
+
+  function renderCal(el, d){
+    $('dot-cal').className = 'dot live';
+    el.innerHTML = '<div class="cal">'
+      + d.events.map(e => '<div class="ev"><div class="tm">' + e.t + '</div>'
+          + '<div><div class="ti">' + e.s + '</div><div class="dy">' + e.d + '</div></div></div>').join('')
+      + '</div>';
+  }
+
+  /* ---------- playbook ----------
+     Rules, not vibes. Each one reads a metric, compares it to a band, and says
+     what to do when it is outside. Written for a trial-led product at $19.99
+     with a 7 day window, which is the shape of this business, so the advice is
+     about this funnel rather than SaaS in general. */
+  const PLAYBOOK = [
+    {
+      name: 'Trial to paid',
+      get:  d => d.kpis && d.kpis.conv,
+      show: v => pct(v),
+      band: [0.15, 0.25],
+      why:  'For a self-serve 7 day trial, under 15% usually means people never reached the point where the product became useful. Above 25% is strong.',
+      low: [
+        'Check how many trials logged a trade at all. If most logged none, this is onboarding, not price.',
+        'Seven days is short for a journal: a trader needs a week of trades before it shows them anything. Consider extending to 14 and comparing cohorts.',
+        'Email on day 2 and day 6. Day 6 is the one that converts, and most people have forgotten by then.'
+      ],
+      high: [
+        'Conversion is healthy, so the constraint is upstream. Put the effort into trial volume rather than the funnel.'
+      ]
+    },
+    {
+      name: 'Monthly churn',
+      get:  d => d.revenue && d.revenue.churn,
+      show: v => pct(v),
+      band: [0.03, 0.07],
+      invert: true,
+      why:  'Above 7% a month means you replace your whole customer base inside about fourteen months, and growth never compounds.',
+      low: [
+        'Find out whether cancels cluster in month 2. That is the point where the discount ends and the first full price lands.',
+        'The NMT code ends after 3 months. Watch for a cancel spike in month 4 and decide if the cliff is too steep.',
+        'Ask every cancel one question on the way out. Do not make it optional.'
+      ],
+      high: [
+        'Churn is in a good band. Protect it: any pricing change should be measured against this number first.'
+      ]
+    },
+    {
+      name: 'Signup to trial',
+      get:  d => d.funnel && d.funnel.steps[1] && (d.funnel.steps[2].n / d.funnel.steps[1].n),
+      show: v => pct(v),
+      band: [0.45, 0.7],
+      why:  'People who make an account but never start the trial got stuck between the two. That gap is almost always friction you can delete.',
+      low: [
+        'Count the steps between account created and trial started. Every one that is not strictly required should go.',
+        'Check whether the trial asks for a card. If it does, that is likely the whole gap, and it is the single biggest lever here.',
+        'Start the trial automatically on signup rather than asking for a second action.'
+      ],
+      high: ['Little friction between signup and trial. Leave it alone.']
+    },
+    {
+      name: 'Visitor to signup',
+      get:  d => d.funnel && (d.funnel.steps[1].n / d.funnel.steps[0].n),
+      show: v => pct(v),
+      band: [0.03, 0.08],
+      why:  'Under 3% from a warm audience that already follows you is a landing page problem, not a traffic problem.',
+      low: [
+        'Your traffic is warm, not cold. It arrives already knowing who you are, so the page should answer "what do I get" not "who is this".',
+        'Check the mobile view first. Nearly all of this traffic is a phone coming from a bio link.',
+        'One call to action above the fold. If there are two, there is none.'
+      ],
+      high: ['The page converts the traffic it gets. More traffic is now the lever.']
+    }
+  ];
+
+  function renderPlaybook(data){
+    const cards = PLAYBOOK.map(r => {
+      let v = null; try { v = r.get(data); } catch (e) { v = null; }
+      if (v == null) return null;
+      const [lo, hi] = r.band;
+      let state, tag, items;
+      const below = r.invert ? v > hi : v < lo;
+      const above = r.invert ? v < lo : v > hi;
+      if (below)      { state = 'is-bad';  tag = 'needs work'; items = r.low; }
+      else if (above) { state = 'is-good'; tag = 'strong';     items = r.high; }
+      else            { state = 'is-warn'; tag = 'in band';    items = r.low; }
+      return { state, tag, items, name:r.name, val:r.show(v), why:r.why, off: below ? 2 : (above ? 0 : 1) };
+    }).filter(Boolean).sort((a,b) => b.off - a.off);
+
+    if (!cards.length){
+      $('p-play').innerHTML = '<div class="offstate"><div class="t">Waiting on data</div>'
+        + '<div class="m">The playbook reads the metrics above and ranks what to fix first. '
+        + 'It stays quiet until at least one source is connected, rather than guessing.</div></div>';
+      return;
+    }
+    $('p-play').innerHTML = cards.map(c =>
+      '<div class="act ' + c.state + '"><div class="h"><span class="mname">' + c.name + '</span>'
+      + '<span class="mval">' + c.val + '</span><span class="tag">' + c.tag + '</span></div>'
+      + '<ul>' + c.items.map(i => '<li>' + i + '</li>').join('') + '</ul>'
+      + '<div class="why">' + c.why + '</div></div>'
+    ).join('');
+  }
+
+  /* ---------- orchestration ---------- */
+  async function refresh(){
+    $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    $('sampleBanner').classList.toggle('hide', !SAMPLE);
+
+    const bag = {};
+    const panels = [
+      ['funnel',  'p-funnel',  'dot-funnel',  renderFunnel],
+      ['revenue', 'p-revenue', 'dot-revenue', renderRevenue],
+      ['traffic', 'p-traffic', 'dot-traffic', renderTraffic],
+      ['grok',    'p-grok',    'dot-grok',    renderGrok],
+      ['cal',     'p-cal',     'dot-cal',     renderCal]
+    ];
+
+    renderKpis(SAMPLE ? SAMPLES.kpis : null);
+    if (SAMPLE) bag.kpis = SAMPLES.kpis;
+
+    for (const [name, elId, dotId, render] of panels){
+      const res = await load(name);
+      if (res.ok){ bag[name] = res.data; render($(elId), res.data); }
+      else offState($(elId), dotId, res.needs);
+    }
+    renderPlaybook(bag);
+  }
+
+  /* ---------- auth ---------- */
+  function showApp(){ $('gate').classList.add('hidden'); $('app').classList.remove('hidden'); refresh(); }
+  function showGate(msg, cls){
+    $('app').classList.add('hidden'); $('gate').classList.remove('hidden');
+    if (msg){ $('gateNote').textContent = msg; $('gateNote').className = 'note ' + (cls || ''); }
+  }
+
+  async function init(){
+    $('refresh').addEventListener('click', refresh);
+
+    if (!configured){
+      // No project yet. Rather than a login that cannot work, say what is missing.
+      $('gateSub').textContent = 'Not configured yet.';
+      $('gateForm').classList.add('hidden');
+      $('gateNote').className = 'note';
+      $('gateNote').innerHTML = 'Fill in <code>supabaseUrl</code> and <code>supabaseAnonKey</code> in CONFIG '
+        + 'at the top of this file. Both are safe to publish. Until then you can still '
+        + '<a href="#preview" id="previewLink" style="color:var(--blue-ink)">preview the layout</a> with sample data.';
+      $('previewLink').addEventListener('click', e => { e.preventDefault(); SAMPLE = true; showApp(); });
+      return;
+    }
+
+    sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
+    SAMPLE = false;
+
+    $('sendLink').addEventListener('click', async () => {
+      const email = $('email').value.trim();
+      if (!email) return;
+      if (CONFIG.allowedEmail && email.toLowerCase() !== CONFIG.allowedEmail.toLowerCase()){
+        showGate('That address cannot sign in here.', 'err'); return;
+      }
+      $('sendLink').disabled = true;
+      const { error } = await sb.auth.signInWithOtp({
+        email, options: { emailRedirectTo: window.location.href }
+      });
+      $('sendLink').disabled = false;
+      if (error) showGate(error.message, 'err');
+      else showGate('Link sent. Open it on this device.', 'ok');
+    });
+
+    $('signout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+
+    const { data:{ session } } = await sb.auth.getSession();
+    if (session) gateOrShow(session);
+    sb.auth.onAuthStateChange((_e, s) => { if (s) gateOrShow(s); });
+  }
+
+  function gateOrShow(session){
+    const email = session.user && session.user.email;
+    if (CONFIG.allowedEmail && email && email.toLowerCase() !== CONFIG.allowedEmail.toLowerCase()){
+      sb.auth.signOut();
+      showGate('That address cannot sign in here.', 'err');
+      return;
+    }
+    showApp();
+  }
+
+  return { init, refresh };
+})();
+
+DASH.init();
+</script>
+</body>
+</html>
