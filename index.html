@@ -458,6 +458,28 @@
   }
 
   document.getElementById('y').textContent = new Date().getFullYear();
+
+  // The way in. Five taps on the copyright line inside three seconds.
+  //
+  // Nothing is added to the page and nothing is styled differently: the target
+  // is the footer that was already there, so there is no element to notice, no
+  // cursor change and no difference in the markup a visitor would read. Taps
+  // rather than a key chord because this gets opened from a phone.
+  //
+  // It is a door, not a lock. Anyone who finds it still meets the login, and
+  // the data behind that is refused server-side. Hiding the entrance is only
+  // so the public page stays a link page.
+  (function(){
+    var foot = document.querySelector('.foot');
+    if (!foot) return;
+    var hits = 0, first = 0;
+    foot.addEventListener('click', function(){
+      var now = Date.now();
+      if (now - first > 3000){ hits = 0; first = now; }
+      if (++hits >= 5){ hits = 0; window.location.href = '/dash/'; }
+    });
+    foot.style.webkitTapHighlightColor = 'transparent';
+  })();
 })();
 </script>
 </body>
