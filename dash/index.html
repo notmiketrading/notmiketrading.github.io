@@ -101,6 +101,10 @@
   }
   .banner b{color:#F2CC60;}
   .banner.hide{display:none;}
+  /* the stale-deploy warning: blue rather than amber, because it is a thing to
+     do rather than a thing to be careful of */
+  .banner.stale{background:rgba(41,98,255,.10);border-color:rgba(41,98,255,.42);color:var(--blue-ink);}
+  .banner.stale b{color:#A8C4FF;}
 
   /* ---------- tiles ---------- */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
@@ -271,6 +275,10 @@
     <div class="stamp" id="stamp"></div>
     <button class="ghost" id="refresh">Refresh</button>
     <button class="ghost" id="signout">Sign out</button>
+  </div>
+
+  <div class="banner stale hide" id="staleBanner">
+    <div id="staleText"></div>
   </div>
 
   <div class="banner" id="sampleBanner">
@@ -783,6 +791,12 @@ const DASH = (() => {
     $('gateNote').textContent = 'This account cannot view the dashboard.';
   }
 
+  // The build this page was written against. Every panel message about a
+  // missing source has at some point actually meant "the function is older
+  // than the page", which is a different problem with a different fix and was
+  // costing a round trip each time. Now the page simply checks.
+  const EXPECTS_BUILD = 'fn-13 calendar';
+
   let PERIOD = 'week';
   let refreshing = false;
 
@@ -826,6 +840,18 @@ const DASH = (() => {
     // Which function is actually answering, and which secrets it can see. This
     // exists because "I redeployed and nothing changed" was otherwise only
     // diagnosable by comparing the wording of error messages.
+    const stale = res.build !== undefined && res.build !== EXPECTS_BUILD;
+    $('staleBanner').classList.toggle('hide', !(stale || (res.ok && res.build === undefined)));
+    if (stale){
+      $('staleText').innerHTML = '<b>The function is out of date.</b> It reports <b>' + res.build
+        + '</b> and this page was built against <b>' + EXPECTS_BUILD + '</b>. '
+        + 'Panels below may say a source is missing when the real reason is that this version '
+        + 'of the function has never heard of it. Redeploy dash-metrics.';
+    } else if (res.ok && res.build === undefined){
+      $('staleText').innerHTML = '<b>The function is out of date.</b> It is old enough that it does '
+        + 'not report its version at all. Redeploy dash-metrics.';
+    }
+
     if (res.build){
       const missing = Object.keys(res.secrets || {}).filter(k => !res.secrets[k]);
       // Built in one assignment. Appending to whatever is already there is how
@@ -850,7 +876,8 @@ const DASH = (() => {
     for (const [name, elId, dotId, render] of panels){
       const panel = got[name];
       if (panel && panel.ok){ bag[name] = panel.data; render($(elId), panel.data); }
-      else offState($(elId), dotId, (panel && panel.reason) || res.reason || 'Waiting on dash-metrics.');
+      else offState($(elId), dotId, (panel && panel.reason) || res.reason
+        || 'The deployed function has no ' + name + ' panel, so it is older than this page.');
     }
     renderPlaybook(bag);
   }
