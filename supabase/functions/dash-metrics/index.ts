@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-14 bots";
+const BUILD = "fn-13 calendar";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -471,61 +471,6 @@ async function calendarPanel(): Promise<Panel> {
   return { ok: true, data: { events } };
 }
 
-// ----------------------------------------------------------------- bots ----
-// Reads what the bots have reported into bot_reports. Silence is the signal
-// worth surfacing: a bot that has stopped looks exactly like a quiet one until
-// you check when it last spoke, so every row carries its age and anything past
-// the threshold is called stale rather than left looking fine.
-const STALE_AFTER_MIN = 30;
-
-async function botsPanel(): Promise<Panel> {
-  const secret = Deno.env.get("CONTROL_SECRET_KEY") ?? "";
-  if (!secret) {
-    return waiting("Needs CONTROL_SECRET_KEY so this function can read bot_reports.");
-  }
-
-  // Newest first, then keep the first row seen per bot. A handful of bots
-  // reporting every minute makes this a small scan, and doing it here avoids
-  // needing a view or a distinct-on in the database.
-  const res = await fetch(
-    SUPABASE_URL + "/rest/v1/bot_reports?select=bot,at,status,metrics,note&order=at.desc&limit=200",
-    { headers: { apikey: secret, Authorization: "Bearer " + secret } },
-  );
-  if (!res.ok) {
-    const detail = (await res.text()).slice(0, 180);
-    if (/relation .* does not exist/i.test(detail)) {
-      throw new Error("The bot_reports table does not exist yet. Run supabase/schema/03_bot_reports.sql in nmt-control.");
-    }
-    throw new Error("bot_reports " + res.status + ": " + detail);
-  }
-
-  const rows = await res.json() as Array<{
-    bot: string; at: string; status: string; metrics: Record<string, unknown>; note: string | null;
-  }>;
-
-  const latest = new Map<string, typeof rows[number]>();
-  for (const r of rows) if (!latest.has(r.bot)) latest.set(r.bot, r);
-
-  if (latest.size === 0) {
-    return waiting("No bot has reported yet. Point them at the bot-report endpoint.");
-  }
-
-  const now = Date.now();
-  const bots = [...latest.values()].map((r) => {
-    const ageMin = Math.round((now - new Date(r.at).getTime()) / 60000);
-    return {
-      bot: r.bot,
-      status: r.status,
-      ageMin,
-      stale: ageMin > STALE_AFTER_MIN,
-      metrics: r.metrics ?? {},
-      note: r.note,
-    };
-  }).sort((a, b) => Number(b.stale) - Number(a.stale) || a.bot.localeCompare(b.bot));
-
-  return { ok: true, data: { bots, staleAfterMin: STALE_AFTER_MIN } };
-}
-
 async function revenuePanel(): Promise<Panel> {
   if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
 
@@ -635,7 +580,8 @@ Deno.serve(async (req) => {
       // analytics there needs their paid tier, and a panel that silently shows
       // nothing is worse than one that was never promised.
       gather("social", youtubePanel),
-      gather("grok", botsPanel),
+      gather("grok", async () =>
+        waiting("Needs somewhere the bots write to. Nothing can be read until something is recorded.")),
       gather("cal", calendarPanel),
       gather("outbox", async () =>
         waiting("Needs Stripe plus the Killzonda tables, to work out who is waiting on an email.")),
@@ -655,7 +601,6 @@ Deno.serve(async (req) => {
         GA_SERVICE_ACCOUNT: present("GA_SERVICE_ACCOUNT"),
         GA4_PROPERTY_ID: present("GA4_PROPERTY_ID"),
         CALENDAR_ID: present("CALENDAR_ID"),
-        CONTROL_SECRET_KEY: present("CONTROL_SECRET_KEY"),
       },
       panels,
     }, 200, origin);
