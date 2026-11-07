@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-9 yt only, ga msgs";
+const BUILD = "fn-10 ga 403 detail";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -350,7 +350,35 @@ async function trafficPanel(): Promise<Panel> {
   if (!res.ok) {
     const body = (await res.text()).slice(0, 180);
     if (res.status === 403) {
-      throw new Error("The service account has no access to that property. Add its email as a Viewer in GA4 Admin.");
+      // "No access" has two quite different causes that look identical from
+      // here: the Viewer grant was never made, or it was made on a different
+      // property than the id in the secret. Asking the Admin API what this
+      // account CAN see separates them in one step, instead of Mike checking
+      // one, finding it fine, and being none the wiser.
+      let visible = "";
+      try {
+        const list = await fetch(
+          "https://analyticsadmin.googleapis.com/v1beta/accountSummaries",
+          { headers: { Authorization: "Bearer " + token } },
+        );
+        if (list.ok) {
+          const j = await list.json();
+          const props: string[] = [];
+          for (const acct of j.accountSummaries ?? []) {
+            for (const ps of acct.propertySummaries ?? []) {
+              props.push((ps.property ?? "").replace("properties/", "") + " (" + (ps.displayName ?? "?") + ")");
+            }
+          }
+          visible = props.length
+            ? " This account can currently see: " + props.join(", ") + "."
+            : " This account can currently see no properties at all, so the Viewer grant has not been made.";
+        }
+      } catch { /* Admin API not enabled; the property id alone still helps */ }
+
+      throw new Error(
+        "No access to property " + prop + "." + visible +
+        " Grant nmt-dash as a Viewer in analytics.google.com, Admin, Property access management.",
+      );
     }
     throw new Error("GA4 " + res.status + ": " + body);
   }
