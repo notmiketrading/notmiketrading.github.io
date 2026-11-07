@@ -435,9 +435,9 @@ const DASH = (() => {
       {n:7, t:'Signed up, no trade',   w:'Logged in and never logged a trade, so they have not seen the product work yet.', k:'soon'}
     ]},
     cal: { events:[
-      {t:'09:30', d:'Today',    s:'Market open, review overnight'},
-      {t:'14:00', d:'Today',    s:'Killzonda roadmap'},
-      {t:'11:00', d:'Tomorrow', s:'Record YouTube breakdown'}
+      {summary:'Market open, review overnight', start:new Date(new Date().setHours(9,30,0,0)).toISOString(), allDay:false},
+      {summary:'Killzonda roadmap',             start:new Date(new Date().setHours(14,0,0,0)).toISOString(), allDay:false},
+      {summary:'Record YouTube breakdown',      start:new Date(Date.now()+86400000).toISOString(),           allDay:false}
     ]}
   };
 
@@ -600,7 +600,12 @@ const DASH = (() => {
 
   function renderTraffic(el, d){
     $('dot-traffic').className = 'dot live';
-    const label = { day:'vs yesterday', week:'vs previous 7 days', month:'vs previous 28 days' }[d.period] || '';
+    let label = { day:'vs yesterday', week:'vs previous 7 days', month:'vs previous 28 days' }[d.period] || '';
+    if (d.period && d.period !== PERIOD){
+      label = 'function returned ' + d.period + ', not ' + PERIOD;
+    } else if (!d.period){
+      label = 'this function ignores the period: redeploy it';
+    }
 
     let html = '<div class="ttot"><div class="big">' + int(d.sessions) + '</div>'
       + '<div class="sub2">sessions</div>'
@@ -645,10 +650,29 @@ const DASH = (() => {
 
   function renderCal(el, d){
     $('dot-cal').className = 'dot live';
-    el.innerHTML = '<div class="cal">'
-      + d.events.map(e => '<div class="ev"><div class="tm">' + e.t + '</div>'
-          + '<div><div class="ti">' + e.s + '</div><div class="dy">' + e.d + '</div></div></div>').join('')
-      + '</div>';
+    if (!d.events.length){
+      el.innerHTML = '<div class="offstate"><div class="t">Nothing booked</div>'
+        + '<div class="m">No events in the next fortnight.</div></div>';
+      return;
+    }
+
+    // Formatted here rather than server side: the browser knows the timezone
+    // Mike is actually sitting in, and an Edge Function does not.
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dayName = iso => {
+      const d0 = new Date(iso); d0.setHours(0,0,0,0);
+      const diff = Math.round((d0 - today) / 86400000);
+      if (diff === 0) return 'Today';
+      if (diff === 1) return 'Tomorrow';
+      return new Date(iso).toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+    };
+
+    el.innerHTML = '<div class="cal">' + d.events.map(e =>
+      '<div class="ev"><div class="tm">'
+      + (e.allDay ? 'all day' : new Date(e.start).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}))
+      + '</div><div><div class="ti">' + e.summary + '</div>'
+      + '<div class="dy">' + dayName(e.start) + '</div></div></div>'
+    ).join('') + '</div>';
   }
 
   /* ---------- playbook ----------
@@ -824,7 +848,6 @@ const DASH = (() => {
     if (rev) bag.kpis = { mrr:rev.mrr, subs:rev.subs, trials:rev.trials, conv:null };
 
     for (const [name, elId, dotId, render] of panels){
-      if (name === 'cal'){ offState($(elId), dotId, 'Add a Google OAuth client id to CONFIG.'); continue; }
       const panel = got[name];
       if (panel && panel.ok){ bag[name] = panel.data; render($(elId), panel.data); }
       else offState($(elId), dotId, (panel && panel.reason) || res.reason || 'Waiting on dash-metrics.');

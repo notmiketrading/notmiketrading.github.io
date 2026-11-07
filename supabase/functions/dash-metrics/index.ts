@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-12 traffic periods";
+const BUILD = "fn-13 calendar";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -255,7 +255,7 @@ const b64url = (b: ArrayBuffer | Uint8Array) =>
   btoa(String.fromCharCode(...new Uint8Array(b)))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-async function gaToken(saRaw: string): Promise<string> {
+async function googleToken(saRaw: string, scope: string): Promise<string> {
   let sa: { type?: string; client_email?: string; private_key?: string };
   try { sa = JSON.parse(saRaw); }
   catch {
@@ -291,7 +291,7 @@ async function gaToken(saRaw: string): Promise<string> {
     enc({ alg: "RS256", typ: "JWT" }) + "." +
     enc({
       iss: sa.client_email,
-      scope: "https://www.googleapis.com/auth/analytics.readonly",
+      scope,
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp: now + 3600,
@@ -332,7 +332,7 @@ async function trafficPanel(period: string): Promise<Panel> {
     return waiting("GA4_PROPERTY_ID is the numeric property id, not the G-XXXXXXX measurement id.");
   }
 
-  const token = await gaToken(sa);
+  const token = await googleToken(sa, "https://www.googleapis.com/auth/analytics.readonly");
 
   // Two ranges in one request, so "versus last week" is the same round trip
   // rather than a second one that could disagree with the first.
@@ -419,6 +419,56 @@ async function trafficPanel(period: string): Promise<Panel> {
   const prevSessions = [...bySource.values()].reduce((a, v) => a + v.prev, 0);
 
   return { ok: true, data: { period, sessions, prevSessions, rows } };
+}
+
+// -------------------------------------------------------------- calendar ---
+// The same service account, with a second scope. A browser OAuth flow would
+// mean configuring a consent screen and holding a token that expires; sharing
+// a calendar with the service account's email is four clicks and never lapses.
+//
+// Times are returned as ISO and formatted in the page, because the browser
+// knows which timezone Mike is actually in and this function does not.
+async function calendarPanel(): Promise<Panel> {
+  const sa = Deno.env.get("GA_SERVICE_ACCOUNT") ?? "";
+  const calId = (Deno.env.get("CALENDAR_ID") ?? "").trim();
+  if (!sa) return waiting("Needs GA_SERVICE_ACCOUNT, the same one Analytics uses.");
+  if (!calId) return waiting("Needs CALENDAR_ID, which is the email address of the calendar.");
+
+  const token = await googleToken(sa, "https://www.googleapis.com/auth/calendar.readonly");
+
+  const now = new Date();
+  const until = new Date(now.getTime() + 14 * 86400 * 1000);
+  const url = "https://www.googleapis.com/calendar/v3/calendars/" +
+    encodeURIComponent(calId) + "/events" +
+    "?timeMin=" + encodeURIComponent(now.toISOString()) +
+    "&timeMax=" + encodeURIComponent(until.toISOString()) +
+    "&singleEvents=true&orderBy=startTime&maxResults=8";
+
+  const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+  if (!res.ok) {
+    const raw = await res.text();
+    let says = raw.slice(0, 180);
+    try { says = JSON.parse(raw)?.error?.message ?? says; } catch { /* keep raw */ }
+    if (res.status === 404) {
+      throw new Error("No calendar " + calId + " visible to this account. Share it with the service account email in Google Calendar settings.");
+    }
+    if (res.status === 403) {
+      throw new Error("Google says: " + says + " | if this mentions the API being disabled, enable Google Calendar API in Cloud; otherwise share the calendar with the service account.");
+    }
+    throw new Error("Calendar " + res.status + ": " + says);
+  }
+
+  const body = await res.json();
+  const events = (body.items ?? [])
+    .filter((e: { status?: string }) => e.status !== "cancelled")
+    .map((e: { summary?: string; start?: { dateTime?: string; date?: string } }) => ({
+      summary: e.summary ?? "(no title)",
+      start: e.start?.dateTime ?? e.start?.date ?? null,
+      allDay: !e.start?.dateTime,
+    }))
+    .filter((e: { start: string | null }) => e.start);
+
+  return { ok: true, data: { events } };
 }
 
 async function revenuePanel(): Promise<Panel> {
@@ -532,6 +582,7 @@ Deno.serve(async (req) => {
       gather("social", youtubePanel),
       gather("grok", async () =>
         waiting("Needs somewhere the bots write to. Nothing can be read until something is recorded.")),
+      gather("cal", calendarPanel),
       gather("outbox", async () =>
         waiting("Needs Stripe plus the Killzonda tables, to work out who is waiting on an email.")),
     ]);
@@ -549,6 +600,7 @@ Deno.serve(async (req) => {
         YOUTUBE_CHANNEL_ID: present("YOUTUBE_CHANNEL_ID"),
         GA_SERVICE_ACCOUNT: present("GA_SERVICE_ACCOUNT"),
         GA4_PROPERTY_ID: present("GA4_PROPERTY_ID"),
+        CALENDAR_ID: present("CALENDAR_ID"),
       },
       panels,
     }, 200, origin);
