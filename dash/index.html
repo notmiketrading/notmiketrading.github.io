@@ -134,6 +134,7 @@
   .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--text-3);}
   .dot.live{background:var(--good);}
   .dot.off{background:var(--text-3);}
+  .dot.warn{background:var(--warn);}
   .dot.err{background:var(--bad);}
   .pbody{padding:16px 17px;flex:1 1 auto;}
 
@@ -196,6 +197,21 @@
   .job.urgent .jn{color:var(--bad-ink);}
   .job.soon .jn{color:var(--warn-ink);}
   .job.calm .jn{color:var(--text-3);}
+  .job .jwho{font-size:12px;margin-top:2px;color:var(--text-2);}
+  .job .jwho .dim{color:var(--text-3);}
+  /* the button stays quiet until the row is hovered: this panel is read far
+     more often than it is acted on, and a column of live buttons reads as a
+     form rather than a list */
+  .marksent{margin-top:7px;padding:4px 9px;border-radius:6px;cursor:pointer;
+    font:inherit;font-size:11px;font-weight:600;color:var(--text-3);
+    background:transparent;border:1px solid var(--line-soft);
+    opacity:.55;transition:opacity .12s,color .12s,border-color .12s;}
+  .job:hover .marksent{opacity:1;}
+  .marksent:hover{color:var(--good-ink);border-color:var(--good);}
+  .marksent:disabled{opacity:.4;cursor:default;color:var(--text-3);border-color:var(--line-soft);}
+  .jwarn{font-size:12px;line-height:1.5;color:var(--warn-ink);padding-bottom:11px;}
+  .jblind{font-size:11.5px;line-height:1.5;color:var(--text-3);
+    margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);}
 
   /* period switch, sits in the panel header */
   .seg{display:flex;gap:2px;margin-left:auto;background:var(--char);border:1px solid var(--line);border-radius:7px;padding:2px;}
@@ -373,6 +389,12 @@ const DASH = (() => {
   'use strict';
 
   const $ = id => document.getElementById(id);
+  // Names and addresses come from Stripe, which is not a threat, but they go
+  // into innerHTML and an apostrophe in a surname should not be able to break
+  // the panel it appears in.
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   let sb = null, SAMPLE = true;
 
   /* ---------- formatting ---------- */
@@ -387,6 +409,32 @@ const DASH = (() => {
      page never invents a number: sample mode is a separate path behind a
      banner, and is only reachable before the project is configured. */
   let LOCKED = false;
+
+  /* The one write the dashboard makes. Mike sends the email in his own mail
+     client; this records that he did, so the row drops off the list instead
+     of reappearing tomorrow. It deliberately does not send anything. */
+  async function markSent(email, kind, ref){
+    if (SAMPLE) return { ok:false, error:'Sample mode. Nothing is recorded.' };
+    const { data:{ session } } = await sb.auth.getSession();
+    if (!session) return { ok:false, error:'Signed out.' };
+    const res = await fetch(CONFIG.supabaseUrl + '/functions/v1/dash-metrics', {
+      method: 'POST',
+      headers: {
+        apikey: CONFIG.supabaseAnonKey,
+        Authorization: 'Bearer ' + session.access_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ action:'mark-sent', email, kind, ref })
+    });
+    let out = null;
+    try { out = await res.json(); } catch (e) { out = null; }
+    if (!res.ok) {
+      // Say what the server said. Substituting a guess here is the mistake
+      // this project has already made more times than any other.
+      return { ok:false, error:(out && (out.error || out.detail)) || ('HTTP ' + res.status) };
+    }
+    return { ok:true };
+  }
 
   async function fetchPanels(){
     if (SAMPLE) return { ok:true, panels:null };
@@ -436,11 +484,22 @@ const DASH = (() => {
     social: { rows:[
       {name:'notmiketrading', v:'1,240 subs', s:'48,900 views across 37 videos'}
     ]},
-    outbox: { jobs:[
-      {n:4, t:'Trial ends in 2 days',  w:'Day 6 is the email that converts. These four have not been contacted.', k:'urgent'},
-      {n:1, t:'Payment failed',        w:'Card declined on renewal. Stripe retries, but a note from you recovers more.', k:'urgent'},
-      {n:2, t:'Cancelled this week',   w:'Ask the one question. You cannot fix churn you cannot explain.', k:'soon'},
-      {n:7, t:'Signed up, no trade',   w:'Logged in and never logged a trade, so they have not seen the product work yet.', k:'soon'}
+    outbox: { already:3, memory:null, canMark:true, windowDays:30,
+      blind:'Free signups who never entered a card are not in this list, because Stripe has no record of them. That half of the sequence needs Killzonda\u2019s database.',
+      // In the order the function sorts them: overdue first, then soonest.
+      jobs:[
+      {email:'t.b@example.com', name:'Tomas Brandt', kind:'cancelled', ref:'sub_4',
+       title:'Cancelled a paid plan', overdue:true, due:new Date(Date.now() + (-5) * 86400000).toISOString(),
+       why:'Was paying and stopped. The one case where you know the product worked for them.'},
+      {email:'r.okafor@example.com', name:'Rachel Okafor', kind:'payment-failed', ref:'sub_1',
+       title:'Payment failed', overdue:true, due:new Date(Date.now() + (-2) * 86400000).toISOString(),
+       why:'Stripe has it as past_due and keeps retrying. Most are expired cards, which a retry cannot fix and an email can.'},
+      {email:'dan@example.com', name:null, kind:'trial-ending', ref:'sub_2',
+       title:'Trial ends in 14 hours', overdue:false, due:new Date(Date.now() + (0.6) * 86400000).toISOString(),
+       why:'The card has not been charged yet. This is the one deadline here that closes on its own.'},
+      {email:'m.feld@example.com', name:'Marcus Feld', kind:'trial-ending', ref:'sub_3',
+       title:'Trial ends in 2 days', overdue:false, due:new Date(Date.now() + (1.8) * 86400000).toISOString(),
+       why:'The card has not been charged yet. This is the one deadline here that closes on its own.'}
     ]},
     cal: { events:[
       {summary:'Market open, review overnight', start:new Date(new Date().setHours(9,30,0,0)).toISOString(), allDay:false},
@@ -644,16 +703,53 @@ const DASH = (() => {
       + '<div class="pv">' + r.v + '</div></div>').join('');
   }
 
+  // Four kinds, coloured by kind rather than by the panel's mood, so a
+  // glance separates a failed card from somebody who simply left.
+  const OUTBOX_KIND = {
+    'payment-failed': 'urgent',
+    'trial-ending':   'soon',
+    'trial-lapsed':   'calm',
+    'cancelled':      'calm'
+  };
+
   function renderOutbox(el, d){
-    $('dot-outbox').className = 'dot live';
+    const late = d.jobs.filter(j => j.overdue).length;
+    $('dot-outbox').className = 'dot ' + (late ? 'err' : d.jobs.length ? 'warn' : 'live');
+
+    const head = d.memory ? '<div class="jwarn">' + esc(d.memory) + '</div>' : '';
+    const foot = '<div class="jblind">'
+      + (d.already ? d.already + ' already written to and hidden. ' : '')
+      + esc(d.blind) + '</div>';
+
     if (!d.jobs.length){
-      el.innerHTML = '<div class="offstate"><div class="t">Nobody is waiting</div>'
-        + '<div class="m">No trials ending, no failed payments, no unanswered cancellations.</div></div>';
+      el.innerHTML = head
+        + '<div class="offstate"><div class="t">Nobody is waiting</div>'
+        + '<div class="m">No trial about to end, no failed payment, and no cancellation '
+        + 'in the last ' + d.windowDays + ' days.</div></div>' + foot;
       return;
     }
-    el.innerHTML = d.jobs.map(j =>
-      '<div class="job ' + (j.k || 'calm') + '"><div class="jn">' + j.n + '</div>'
-      + '<div><div class="jt">' + j.t + '</div><div class="jw">' + j.w + '</div></div></div>').join('');
+
+    // Three characters at most: the column is 46px wide and the number is
+    // the thing being read, not the sentence around it.
+    const stamp = j => {
+      const ms = new Date(j.due) - new Date();
+      if (j.overdue) return '+' + Math.max(1, Math.round(-ms / 86400000)) + 'd';
+      if (ms < 86400000) return 'now';
+      return Math.round(ms / 86400000) + 'd';
+    };
+
+    el.innerHTML = head + d.jobs.map(j =>
+      '<div class="job ' + (j.overdue ? 'urgent' : (OUTBOX_KIND[j.kind] || 'calm')) + '"'
+      + ' data-email="' + esc(j.email) + '"'
+      + ' data-kind="'  + esc(j.kind)  + '"'
+      + ' data-ref="'   + esc(j.ref)   + '">'
+      + '<div class="jn">' + stamp(j) + '</div>'
+      + '<div><div class="jt">' + esc(j.title) + '</div>'
+      + '<div class="jwho">' + esc(j.name || j.email)
+        + (j.name ? ' <span class="dim">' + esc(j.email) + '</span>' : '') + '</div>'
+      + '<div class="jw">' + esc(j.why) + '</div>'
+      + (d.canMark ? '<button class="marksent" type="button">Mark as sent</button>' : '')
+      + '</div></div>').join('') + foot;
   }
 
   function renderCal(el, d){
@@ -795,7 +891,7 @@ const DASH = (() => {
   // missing source has at some point actually meant "the function is older
   // than the page", which is a different problem with a different fix and was
   // costing a round trip each time. Now the page simply checks.
-  const EXPECTS_BUILD = 'fn-13 calendar';
+  const EXPECTS_BUILD = 'fn-15 outbox';
 
   let PERIOD = 'week';
   let refreshing = false;
@@ -927,6 +1023,30 @@ const DASH = (() => {
       PERIOD = b.dataset.period;
       [...$('seg-traffic').children].forEach(x => x.classList.toggle('on', x === b));
       refresh();
+    });
+
+    // Delegated, because the rows are rebuilt on every refresh and listeners
+    // bound to them would be rebound every thirty seconds.
+    $('p-outbox').addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('.marksent');
+      if (!btn) return;
+      const row = btn.closest('.job');
+      if (!row) return;
+      btn.disabled = true;
+      btn.textContent = 'Recording\u2026';
+      const r = await markSent(row.dataset.email, row.dataset.kind, row.dataset.ref);
+      if (r.ok){
+        // Fade the row rather than remove it: something vanishing under the
+        // cursor is how you end up unsure whether you clicked the right one.
+        row.style.opacity = '.35';
+        btn.textContent = 'Recorded';
+        refresh();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Mark as sent';
+        row.querySelector('.jw').innerHTML =
+          '<span style="color:var(--bad-ink)">Not recorded. ' + esc(r.error) + '</span>';
+      }
     });
 
     // ?preview renders the layout with the invented sample data and never calls

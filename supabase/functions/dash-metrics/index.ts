@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-13 calendar";
+const BUILD = "fn-15 outbox";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -527,6 +527,188 @@ async function revenuePanel(): Promise<Panel> {
   };
 }
 
+// --------------------------------------------------------- needs sending ---
+// The sequence in the spec is aimed at free signups: people who made an
+// account and never put a card in. Stripe has never heard of those, so this
+// panel cannot be that sequence until Killzonda's database is connected. What
+// it can be today is the half Stripe does see, which is the half with money
+// attached: the moments where a trialing or paying customer is waiting on an
+// email and nobody has sent one.
+//
+// Every row carries a deadline taken out of Stripe rather than invented here.
+// A follow-up list that makes up its own urgency is wallpaper inside a week.
+const OUTBOX_WINDOW_DAYS = 30; // how far back a lapse or cancellation counts
+const TRIAL_WARN_DAYS = 2;     // how early an ending trial becomes actionable
+
+type Job = {
+  email: string;
+  name: string | null;
+  kind: "trial-ending" | "payment-failed" | "trial-lapsed" | "cancelled";
+  title: string;
+  why: string;
+  due: string;
+  overdue: boolean;
+  ref: string;
+};
+
+async function outboxPanel(): Promise<Panel> {
+  if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
+
+  const now = Math.floor(Date.now() / 1000);
+  const DAY = 86400;
+  const windowStart = now - OUTBOX_WINDOW_DAYS * DAY;
+  const withCustomer = "&expand[]=data.customer";
+
+  let trialing, pastDue, unpaid, gone;
+  try {
+    [trialing, pastDue, unpaid, gone] = await Promise.all([
+      stripe("subscriptions?status=trialing&limit=100" + withCustomer),
+      stripe("subscriptions?status=past_due&limit=100" + withCustomer),
+      stripe("subscriptions?status=unpaid&limit=100" + withCustomer),
+      // Stripe can filter by created but not by canceled_at, so this takes the
+      // hundred most recent and filters locally. At Killzonda's size that
+      // reaches everything; past a hundred cancellations inside the window,
+      // the longest-standing customers to leave would fall off the end.
+      stripe("subscriptions?status=canceled&limit=100" + withCustomer),
+    ]);
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    // A restricted key without Customers read cannot expand, and Stripe's own
+    // wording for that does not say what to do about it.
+    if (/customer/i.test(m)) {
+      throw new Error(
+        "Stripe would not return customer details, so there are no addresses to list. " +
+          "Give the restricted key Customers: read. Stripe said: " + m,
+      );
+    }
+    throw e;
+  }
+
+  const seen = new Set<string>();
+  const jobs: Job[] = [];
+  const add = (
+    sub: Record<string, unknown>,
+    kind: Job["kind"],
+    title: string,
+    why: string,
+    dueAt: number,
+  ) => {
+    const c = sub.customer as { email?: string; name?: string } | string | null;
+    if (!c || typeof c === "string") return; // not expanded; nothing to write to
+    const email = String(c.email ?? "").trim().toLowerCase();
+    if (!email) return;
+    const ref = String(sub.id ?? "");
+    const key = kind + "|" + email + "|" + ref;
+    if (seen.has(key)) return;
+    seen.add(key);
+    jobs.push({
+      email,
+      name: String(c.name ?? "").trim() || null,
+      kind,
+      title,
+      why,
+      due: new Date(dueAt * 1000).toISOString(),
+      overdue: dueAt < now,
+      ref,
+    });
+  };
+
+  for (const s of (trialing.data ?? [])) {
+    const end = s.trial_end ?? 0;
+    if (!end || end > now + TRIAL_WARN_DAYS * DAY) continue;
+    const hrs = Math.max(0, Math.round((end - now) / 3600));
+    add(s, "trial-ending",
+      "Trial ends in " + (hrs < 24 ? hrs + " hours" : Math.round(hrs / 24) + " days"),
+      "The card has not been charged yet. This is the one deadline here that closes on its own.",
+      end);
+  }
+
+  for (const s of [...(pastDue.data ?? []), ...(unpaid.data ?? [])]) {
+    add(s, "payment-failed",
+      "Payment failed",
+      "Stripe has it as " + String(s.status) + " and keeps retrying. Most are expired cards, "
+        + "which a retry cannot fix and an email can.",
+      s.current_period_end ?? now);
+  }
+
+  for (const s of (gone.data ?? [])) {
+    const at = s.canceled_at ?? 0;
+    if (!at || at < windowStart) continue;
+    if (s.trial_end && at <= s.trial_end) {
+      add(s, "trial-lapsed", "Left during the trial",
+        "Cancelled before the first charge. They saw it and decided against paying.",
+        at + DAY);
+    } else {
+      add(s, "cancelled", "Cancelled a paid plan",
+        "Was paying and stopped. The one case where you know the product worked for them.",
+        at + DAY);
+    }
+  }
+
+  // Memory. Without it this list shows the same people every morning until the
+  // window slides past them, which is exactly how a follow-up list stops being
+  // read. When the memory is unreachable the panel says so rather than quietly
+  // handing back an unfiltered list that looks the same.
+  const control = Deno.env.get("CONTROL_SECRET_KEY") ?? "";
+  let memory: string | null = null;
+  let already = 0;
+
+  if (!control) {
+    memory = "Sent follow-ups cannot be remembered yet, so this list will repeat itself. "
+      + "Run 04_sent_log.sql in nmt-control and add CONTROL_SECRET_KEY to this function.";
+  } else {
+    const ctl = async (path: string) => {
+      const r = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+        headers: { apikey: control, Authorization: "Bearer " + control },
+      });
+      if (!r.ok) {
+        const d = (await r.text()).slice(0, 180);
+        if (/does not exist/i.test(d)) {
+          throw new Error("Run supabase/schema/01_control_state.sql and 04_sent_log.sql in "
+            + "nmt-control. Postgres said: " + d);
+        }
+        throw new Error("nmt-control " + r.status + ": " + d);
+      }
+      return r.json();
+    };
+
+    const [sent, excluded] = await Promise.all([
+      ctl("sent_log?select=customer_email,kind,ref"),
+      ctl("exclusions?select=customer_email"),
+    ]);
+
+    const done = new Set((sent as Array<{ customer_email: string; kind: string; ref: string }>)
+      .map((r) => r.kind + "|" + r.customer_email + "|" + (r.ref ?? "")));
+    const skip = new Set((excluded as Array<{ customer_email: string }>)
+      .map((r) => r.customer_email.trim().toLowerCase()));
+
+    const before = jobs.length;
+    for (let i = jobs.length - 1; i >= 0; i--) {
+      const j = jobs[i];
+      if (skip.has(j.email) || done.has(j.kind + "|" + j.email + "|" + j.ref)) jobs.splice(i, 1);
+    }
+    already = before - jobs.length;
+  }
+
+  // Overdue first, then soonest. Both ends of that matter: the top of the list
+  // is what is already late, and below it is what closes next.
+  jobs.sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.due.localeCompare(b.due));
+
+  return {
+    ok: true,
+    data: {
+      jobs,
+      already,
+      memory,
+      canMark: control !== "",
+      windowDays: OUTBOX_WINDOW_DAYS,
+      blind: "Free signups who never entered a card are not in this list, because Stripe "
+        + "has no record of them. That half of the sequence needs Killzonda's database.",
+    },
+  };
+}
+
+
 // ------------------------------------------------------------------ main ---
 Deno.serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -562,6 +744,57 @@ Deno.serve(async (req) => {
       return json({ error: "forbidden" }, 403, origin);
     }
 
+    // ---- recording that a follow-up went out ------------------------------
+    // A GET answers who is waiting. This answers "I have written to them",
+    // and it is the only write this function makes. Without it the list grows
+    // and never shrinks, which is the failure mode the spec calls out: overdue
+    // follow-ups stay visible until Mike confirms sending them.
+    if (req.method === "POST") {
+      const control = Deno.env.get("CONTROL_SECRET_KEY") ?? "";
+      if (!control) {
+        return json({ error: "CONTROL_SECRET_KEY is not set on this function, so there is "
+          + "nowhere to record it." }, 500, origin);
+      }
+
+      let body: { action?: string; email?: string; kind?: string; ref?: string; note?: string };
+      try { body = await req.json(); }
+      catch { return json({ error: "body must be JSON" }, 400, origin); }
+
+      if (body.action !== "mark-sent") {
+        return json({ error: `unknown action: ${body.action ?? "(none)"}` }, 400, origin);
+      }
+      const email = (body.email ?? "").trim().toLowerCase();
+      const kind = (body.kind ?? "").trim();
+      if (!email || !kind) return json({ error: "email and kind are both required" }, 400, origin);
+
+      // merge-duplicates so pressing it twice is not an error. Confirming
+      // twice is still one email.
+      const w = await fetch(SUPABASE_URL + "/rest/v1/sent_log?on_conflict=customer_email,kind,ref", {
+        method: "POST",
+        headers: {
+          apikey: control,
+          Authorization: "Bearer " + control,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify({
+          customer_email: email,
+          kind,
+          ref: (body.ref ?? "").trim(),
+          via: "manual",
+          note: body.note ?? null,
+        }),
+      });
+      if (!w.ok) {
+        const d = (await w.text()).slice(0, 200);
+        if (/does not exist/i.test(d)) {
+          return json({ error: "Run supabase/schema/04_sent_log.sql in nmt-control first.", detail: d }, 500, origin);
+        }
+        return json({ error: "could not record it", detail: d }, 500, origin);
+      }
+      return json({ ok: true, email, kind }, 200, origin);
+    }
+
     // day | week | month, defaulting to week. Only traffic uses it so far.
     const period = new URL(req.url).searchParams.get("period") ?? "week";
 
@@ -583,8 +816,7 @@ Deno.serve(async (req) => {
       gather("grok", async () =>
         waiting("Needs somewhere the bots write to. Nothing can be read until something is recorded.")),
       gather("cal", calendarPanel),
-      gather("outbox", async () =>
-        waiting("Needs Stripe plus the Killzonda tables, to work out who is waiting on an email.")),
+      gather("outbox", outboxPanel),
     ]);
 
     const present = (k: string) => (Deno.env.get(k) ?? "") !== "";
@@ -601,6 +833,7 @@ Deno.serve(async (req) => {
         GA_SERVICE_ACCOUNT: present("GA_SERVICE_ACCOUNT"),
         GA4_PROPERTY_ID: present("GA4_PROPERTY_ID"),
         CALENDAR_ID: present("CALENDAR_ID"),
+        CONTROL_SECRET_KEY: present("CONTROL_SECRET_KEY"),
       },
       panels,
     }, 200, origin);
