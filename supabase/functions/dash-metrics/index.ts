@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-10 ga 403 detail";
+const BUILD = "fn-11 ga says";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -348,13 +348,16 @@ async function trafficPanel(): Promise<Panel> {
     },
   );
   if (!res.ok) {
-    const body = (await res.text()).slice(0, 180);
+    const raw = await res.text();
+    let googleSays = raw.slice(0, 200);
+    try { googleSays = JSON.parse(raw)?.error?.message ?? googleSays; } catch { /* keep raw */ }
+
     if (res.status === 403) {
-      // "No access" has two quite different causes that look identical from
-      // here: the Viewer grant was never made, or it was made on a different
-      // property than the id in the secret. Asking the Admin API what this
-      // account CAN see separates them in one step, instead of Mike checking
-      // one, finding it fine, and being none the wiser.
+      // Google says 403 for at least three unrelated things here: the Data API
+      // not being enabled on the project, the service account having no grant
+      // on the property, and the property id belonging to someone else's
+      // property. Substituting one guess for Google's own sentence, which is
+      // what this used to do, hides the two cases it guessed wrong about.
       let visible = "";
       try {
         const list = await fetch(
@@ -370,17 +373,14 @@ async function trafficPanel(): Promise<Panel> {
             }
           }
           visible = props.length
-            ? " This account can currently see: " + props.join(", ") + "."
-            : " This account can currently see no properties at all, so the Viewer grant has not been made.";
+            ? " | this account can see: " + props.join(", ")
+            : " | this account can see no properties at all";
         }
-      } catch { /* Admin API not enabled; the property id alone still helps */ }
+      } catch { /* Admin API not enabled: the rest of the message still helps */ }
 
-      throw new Error(
-        "No access to property " + prop + "." + visible +
-        " Grant nmt-dash as a Viewer in analytics.google.com, Admin, Property access management.",
-      );
+      throw new Error("Google says: " + googleSays + " | asked for property " + prop + visible);
     }
-    throw new Error("GA4 " + res.status + ": " + body);
+    throw new Error("GA4 " + res.status + ": " + googleSays);
   }
 
   const body = await res.json();
