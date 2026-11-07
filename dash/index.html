@@ -193,6 +193,31 @@
   .job.soon .jn{color:var(--warn-ink);}
   .job.calm .jn{color:var(--text-3);}
 
+  /* period switch, sits in the panel header */
+  .seg{display:flex;gap:2px;margin-left:auto;background:var(--char);border:1px solid var(--line);border-radius:7px;padding:2px;}
+  .seg button{
+    border:0;background:transparent;color:var(--text-3);cursor:pointer;
+    font:inherit;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+    padding:4px 8px;border-radius:5px;transition:background-color 160ms var(--ease),color 160ms var(--ease);
+  }
+  .seg button:hover{color:var(--text-2);}
+  .seg button.on{background:var(--blue);color:#fff;}
+
+  /* horizontal bars: the ranking is the point, so the label sits on the bar */
+  .bars{display:flex;flex-direction:column;gap:7px;}
+  .bar2{position:relative;height:30px;border-radius:6px;background:var(--char-3);overflow:hidden;}
+  .bar2 .fill2{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--blue),#5B86FF);border-radius:6px;}
+  .bar2 .lab{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:12.5px;}
+  .bar2 .lab .nm2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:10px;}
+  .bar2 .lab .vv{font-family:var(--mono);font-size:11.5px;display:flex;align-items:center;gap:7px;flex:0 0 auto;}
+  .trend{font-family:var(--mono);font-size:9.5px;font-weight:600;padding:1px 5px;border-radius:4px;}
+  .trend.up{color:var(--good-ink);background:rgba(63,185,80,.16);}
+  .trend.down{color:var(--bad-ink);background:rgba(248,81,73,.16);}
+  .trend.flat{color:var(--text-3);background:rgba(255,255,255,.07);}
+  .ttot{display:flex;align-items:baseline;gap:10px;margin-bottom:13px;}
+  .ttot .big{font-family:var(--tight);font-weight:800;font-size:27px;letter-spacing:-0.03em;}
+  .ttot .sub2{font-size:12px;color:var(--text-3);}
+
   .newhead{margin:18px 0 9px;padding-top:14px;border-top:1px solid var(--line-soft);
     font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--blue-ink);}
 
@@ -270,7 +295,13 @@
     </div>
 
     <div class="panel">
-      <div class="phead"><span class="dot" id="dot-traffic"></span><h2>Traffic</h2><span class="src">GA4</span></div>
+      <div class="phead"><span class="dot" id="dot-traffic"></span><h2>Traffic</h2>
+        <span class="seg" id="seg-traffic">
+          <button data-period="day">Day</button>
+          <button data-period="week" class="on">Week</button>
+          <button data-period="month">Month</button>
+        </span>
+      </div>
       <div class="pbody" id="p-traffic"></div>
     </div>
 
@@ -358,7 +389,7 @@ const DASH = (() => {
     // the project gateway and says which project this is; Authorization carries
     // the signed-in user, which is what the function checks against ADMIN_EMAIL.
     // Sending only the second returns 401 before the function ever runs.
-    const res = await fetch(CONFIG.supabaseUrl + '/functions/v1/dash-metrics', {
+    const res = await fetch(CONFIG.supabaseUrl + '/functions/v1/dash-metrics?period=' + PERIOD, {
       headers: {
         apikey: CONFIG.supabaseAnonKey,
         Authorization: 'Bearer ' + session.access_token
@@ -378,12 +409,15 @@ const DASH = (() => {
     funnel: { everStarted:140, converted:74, inTrial:22, lapsed:44, conversion:0.627,
       newly:{ startedDay:3, startedWeek:17, convertedDay:1, convertedWeek:9, lostDay:0, lostWeek:4 } },
     revenue: { mrr:1840, total:24760, totalComplete:true, series:[1180,1250,1240,1390,1455,1520,1610,1840], churn:0.058, arpu:20.0, coupon:14 },
-    traffic: { sessions:4200, rows:[
-      {src:'tiktok',          n:1680},
-      {src:'instagram',       n:980},
-      {src:'google / organic',n:720},
-      {src:'notmiketrading',  n:430},
-      {src:'x',               n:290}
+    traffic: { period:'week', sessions:389, prevSessions:331, rows:[
+      {src:'(direct)',             n:148, prev:122},
+      {src:'accounts.google.com',  n:118, prev:126},
+      {src:'email',                n:61,  prev:40},
+      {src:'google',               n:29,  prev:25},
+      {src:'checkout.stripe.com',  n:9,   prev:7},
+      {src:'m.facebook.com',       n:9,   prev:4},
+      {src:'l.instagram.com',      n:8,   prev:11},
+      {src:'(not set)',            n:7,   prev:6}
     ]},
     grok: { rows:[
       {k:'Bots running',   v:'3'},
@@ -529,11 +563,58 @@ const DASH = (() => {
       + sparkline(d.series);
   }
 
+  // GA4 reports raw hostnames, which are not names. Two of these are not
+  // acquisition at all: accounts.google.com and checkout.stripe.com are
+  // Mike's own sign-in and payment flow handing people back, so they are
+  // labelled as returns rather than sources.
+  const SOURCE_NAMES = [
+    [/^\(direct\)$/i,            'Direct'],
+    [/^\(not set\)$/i,           'Unknown'],
+    [/accounts\.google\.com/i,    'Google sign-in (return)'],
+    [/checkout\.stripe\.com/i,    'Stripe checkout (return)'],
+    [/^google$/i,                 'Google search'],
+    [/^email$/i,                  'Email'],
+    [/instagram/i,                'Instagram'],
+    [/facebook/i,                 'Facebook'],
+    [/tiktok/i,                   'TikTok'],
+    [/youtube/i,                  'YouTube'],
+    [/(^|\.)x\.com|t\.co|twitter/i,'X'],
+    [/reddit/i,                   'Reddit'],
+    [/linkedin/i,                 'LinkedIn'],
+    [/bing/i,                     'Bing'],
+    [/duckduckgo/i,               'DuckDuckGo'],
+    [/notmiketrading/i,           'Link page']
+  ];
+  function prettySource(raw){
+    for (const [re, name] of SOURCE_NAMES) if (re.test(raw)) return name;
+    return raw.replace(/^www\./, '').replace(/\.(com|co|io|net|org)$/, '');
+  }
+
+  function trendPill(now, prev){
+    if (prev == null) return '';
+    if (!prev) return now ? '<span class="trend up">new</span>' : '';
+    const d = (now - prev) / prev;
+    const cls = Math.abs(d) < 0.02 ? 'flat' : (d > 0 ? 'up' : 'down');
+    return '<span class="trend ' + cls + '">' + (d > 0 ? '+' : '') + Math.round(d * 100) + '%</span>';
+  }
+
   function renderTraffic(el, d){
     $('dot-traffic').className = 'dot live';
-    el.innerHTML = '<table><thead><tr><th>Source</th><th class="r">Sessions</th></tr></thead><tbody>'
-      + d.rows.map(r => '<tr><td>' + r.src + '</td><td class="r num">' + int(r.n) + '</td></tr>').join('')
-      + '</tbody></table>';
+    const label = { day:'vs yesterday', week:'vs previous 7 days', month:'vs previous 28 days' }[d.period] || '';
+
+    let html = '<div class="ttot"><div class="big">' + int(d.sessions) + '</div>'
+      + '<div class="sub2">sessions</div>'
+      + trendPill(d.sessions, d.prevSessions)
+      + '<div class="sub2" style="margin-left:auto">' + label + '</div></div>';
+
+    const top = Math.max.apply(null, d.rows.map(r => r.n).concat([1]));
+    html += '<div class="bars">' + d.rows.map(r =>
+      '<div class="bar2"><div class="fill2" style="width:' + Math.max(2, (r.n / top) * 100) + '%"></div>'
+      + '<div class="lab"><span class="nm2">' + prettySource(r.src) + '</span>'
+      + '<span class="vv">' + trendPill(r.n, r.prev) + int(r.n) + '</span></div></div>'
+    ).join('') + '</div>';
+
+    el.innerHTML = html;
   }
 
   function renderGrok(el, d){
@@ -678,6 +759,7 @@ const DASH = (() => {
     $('gateNote').textContent = 'This account cannot view the dashboard.';
   }
 
+  let PERIOD = 'week';
   let refreshing = false;
 
   async function refresh(){
@@ -759,6 +841,15 @@ const DASH = (() => {
 
   async function init(){
     $('refresh').addEventListener('click', refresh);
+
+    // One listener on the group rather than three on the buttons.
+    $('seg-traffic').addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      PERIOD = b.dataset.period;
+      [...$('seg-traffic').children].forEach(x => x.classList.toggle('on', x === b));
+      refresh();
+    });
 
     // ?preview renders the layout with the invented sample data and never calls
     // dash-metrics, so it reaches no real figure and needs no sign-in. It exists

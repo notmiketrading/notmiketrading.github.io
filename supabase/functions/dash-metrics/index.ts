@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-11 ga says";
+const BUILD = "fn-12 traffic periods";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -322,7 +322,7 @@ async function gaToken(saRaw: string): Promise<string> {
   return (await res.json()).access_token;
 }
 
-async function trafficPanel(): Promise<Panel> {
+async function trafficPanel(period: string): Promise<Panel> {
   const sa = Deno.env.get("GA_SERVICE_ACCOUNT") ?? "";
   const prop = (Deno.env.get("GA4_PROPERTY_ID") ?? "").trim();
   if (!sa || !prop) {
@@ -333,17 +333,30 @@ async function trafficPanel(): Promise<Panel> {
   }
 
   const token = await gaToken(sa);
+
+  // Two ranges in one request, so "versus last week" is the same round trip
+  // rather than a second one that could disagree with the first.
+  const WINDOWS: Record<string, [string, string, string, string]> = {
+    day:   ["1daysAgo",  "today", "2daysAgo",  "2daysAgo"],
+    week:  ["7daysAgo",  "today", "14daysAgo", "8daysAgo"],
+    month: ["28daysAgo", "today", "56daysAgo", "29daysAgo"],
+  };
+  const w = WINDOWS[period] ?? WINDOWS.week;
+
   const res = await fetch(
     "https://analyticsdata.googleapis.com/v1beta/properties/" + prop + ":runReport",
     {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
       body: JSON.stringify({
-        dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+        dateRanges: [
+          { startDate: w[0], endDate: w[1], name: "current" },
+          { startDate: w[2], endDate: w[3], name: "previous" },
+        ],
         dimensions: [{ name: "sessionSource" }],
         metrics: [{ name: "sessions" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-        limit: 8,
+        limit: 40,
       }),
     },
   );
@@ -384,15 +397,28 @@ async function trafficPanel(): Promise<Panel> {
   }
 
   const body = await res.json();
-  const rows = (body.rows ?? []).map((r: { dimensionValues: { value: string }[]; metricValues: { value: string }[] }) => ({
-    src: r.dimensionValues?.[0]?.value || "(none)",
-    n: Number(r.metricValues?.[0]?.value ?? 0),
-  }));
 
-  return {
-    ok: true,
-    data: { sessions: rows.reduce((a: number, r: { n: number }) => a + r.n, 0), rows },
-  };
+  // With two ranges GA4 appends a dateRange dimension to every row, so the
+  // same source arrives twice and has to be folded back together.
+  const bySource = new Map<string, { n: number; prev: number }>();
+  for (const r of body.rows ?? []) {
+    const src = r.dimensionValues?.[0]?.value || "(not set)";
+    const which = r.dimensionValues?.[1]?.value || "current";
+    const n = Number(r.metricValues?.[0]?.value ?? 0);
+    const row = bySource.get(src) ?? { n: 0, prev: 0 };
+    if (which === "previous") row.prev += n; else row.n += n;
+    bySource.set(src, row);
+  }
+
+  const rows = [...bySource.entries()]
+    .map(([src, v]) => ({ src, n: v.n, prev: v.prev }))
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 8);
+
+  const sessions = [...bySource.values()].reduce((a, v) => a + v.n, 0);
+  const prevSessions = [...bySource.values()].reduce((a, v) => a + v.prev, 0);
+
+  return { ok: true, data: { period, sessions, prevSessions, rows } };
 }
 
 async function revenuePanel(): Promise<Panel> {
@@ -486,6 +512,9 @@ Deno.serve(async (req) => {
       return json({ error: "forbidden" }, 403, origin);
     }
 
+    // day | week | month, defaulting to week. Only traffic uses it so far.
+    const period = new URL(req.url).searchParams.get("period") ?? "week";
+
     // Each source is gathered independently so one outage degrades one panel.
     const panels: Record<string, Panel> = {};
     const gather = async (name: string, fn: () => Promise<Panel>) => {
@@ -496,7 +525,7 @@ Deno.serve(async (req) => {
     await Promise.all([
       gather("revenue", revenuePanel),
       gather("funnel", trialPanel),
-      gather("traffic", trafficPanel),
+      gather("traffic", () => trafficPanel(period)),
       // Four platforms, not five. X is left out on purpose: reading your own
       // analytics there needs their paid tier, and a panel that silently shows
       // nothing is worse than one that was never promised.
