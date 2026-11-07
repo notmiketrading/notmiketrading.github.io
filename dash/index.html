@@ -833,7 +833,35 @@ const DASH = (() => {
     // but the stamp was built by appending and came out duplicated.
     if (refreshing) return;
     refreshing = true;
-    try { await doRefresh(); } finally { refreshing = false; }
+    try {
+      await doRefresh();
+    } catch (e) {
+      // There was a finally here and no catch, so anything thrown mid-render
+      // left the page exactly as it was: headers drawn, every panel empty, no
+      // tiles, nothing said. A dashboard whose job is reporting state should
+      // never be the thing concealing it.
+      fatal(e);
+    } finally {
+      refreshing = false;
+    }
+  }
+
+  function fatal(e){
+    const msg = (e && e.message) ? e.message : String(e);
+    console.error('[dash]', e);
+    $('staleBanner').classList.remove('hide');
+    $('staleText').innerHTML =
+      '<b>The page hit an error while rendering.</b> ' + msg +
+      ' &mdash; this is a bug in the dashboard, not in your configuration. ' +
+      'The console has the stack.';
+    // Say it on the panels too, so none of them is left looking merely empty.
+    for (const id of ['p-funnel','p-revenue','p-traffic','p-social','p-grok','p-outbox','p-cal']){
+      const el = $(id);
+      if (el && !el.innerHTML.trim()){
+        el.innerHTML = '<div class="offstate"><div class="t">Render failed</div>'
+          + '<div class="m">' + msg + '</div></div>';
+      }
+    }
   }
 
   async function doRefresh(){
@@ -980,7 +1008,17 @@ const DASH = (() => {
   return { init, refresh };
 })();
 
-DASH.init();
+// init can throw before refresh is ever reached, which would also produce a
+// silent blank page. Nothing in this file is allowed to fail quietly any more.
+Promise.resolve().then(DASH.init).catch(function(e){
+  console.error("[dash] init failed", e);
+  var t = document.getElementById("staleText");
+  var b = document.getElementById("staleBanner");
+  if (t && b){
+    b.classList.remove("hide");
+    t.innerHTML = "<b>Startup failed.</b> " + ((e && e.message) || e);
+  }
+});
 </script>
 </body>
 </html>
