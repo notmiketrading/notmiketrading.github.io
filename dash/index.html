@@ -222,6 +222,15 @@
   .ttot .big{font-family:var(--tight);font-weight:800;font-size:27px;letter-spacing:-0.03em;}
   .ttot .sub2{font-size:12px;color:var(--text-3);}
 
+  .bot{padding:11px 0;border-top:1px solid var(--line-soft);}
+  .bot:first-child{border-top:0;padding-top:0;}
+  .bothead{display:flex;align-items:baseline;gap:10px;}
+  .botname{font-size:13.5px;font-weight:600;}
+  .botage{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--text-3);}
+  .bot.stale .botage{color:var(--bad-ink);}
+  .bot.stale .botname{color:var(--bad-ink);}
+  .botnote{margin-top:4px;font-size:12px;line-height:1.5;color:var(--text-3);}
+
   .newhead{margin:18px 0 9px;padding-top:14px;border-top:1px solid var(--line-soft);
     font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--blue-ink);}
 
@@ -427,11 +436,13 @@ const DASH = (() => {
       {src:'l.instagram.com',      n:8,   prev:11},
       {src:'(not set)',            n:7,   prev:6}
     ]},
-    grok: { rows:[
-      {k:'Bots running',   v:'3'},
-      {k:'Signals today',  v:'18'},
-      {k:'Win rate (30d)', v:'61%'},
-      {k:'Last heartbeat', v:'4 min ago'}
+    grok: { staleAfterMin:30, bots:[
+      {bot:'scalper-1', status:'ok',   ageMin:2,   stale:false, note:null,
+       metrics:{signals_today:18, win_rate_30d:0.61, open_positions:2}},
+      {bot:'swing-2',   status:'ok',   ageMin:6,   stale:false, note:'flat, waiting for London open',
+       metrics:{signals_today:3, open_positions:0}},
+      {bot:'news-sent', status:'warn', ageMin:214, stale:true,  note:'last run threw on feed timeout',
+       metrics:{signals_today:0}}
     ]},
     social: { rows:[
       {name:'notmiketrading', v:'1,240 subs', s:'48,900 views across 37 videos'}
@@ -631,10 +642,26 @@ const DASH = (() => {
   }
 
   function renderGrok(el, d){
-    $('dot-grok').className = 'dot live';
-    el.innerHTML = '<table><tbody>'
-      + d.rows.map(r => '<tr><td class="dim">' + r.k + '</td><td class="r num">' + r.v + '</td></tr>').join('')
-      + '</tbody></table>';
+    const anyStale = d.bots.some(b => b.stale);
+    $('dot-grok').className = 'dot ' + (anyStale ? 'err' : 'live');
+
+    const age = m => m < 1 ? 'just now' : m < 60 ? m + ' min ago'
+      : m < 1440 ? Math.round(m/60) + ' h ago' : Math.round(m/1440) + ' d ago';
+
+    el.innerHTML = d.bots.map(b => {
+      // Whatever keys the bot chose to send. Fixed columns would mean a change
+      // here every time a bot learns to count something new.
+      const kv = Object.entries(b.metrics || {})
+        .map(([k, v]) => '<tr><td class="dim">' + k.replace(/_/g, ' ') + '</td>'
+          + '<td class="r num">' + (typeof v === 'number' ? v.toLocaleString('en-US') : String(v)) + '</td></tr>')
+        .join('');
+      return '<div class="bot' + (b.stale ? ' stale' : '') + '">'
+        + '<div class="bothead"><span class="botname">' + b.bot + '</span>'
+        + '<span class="botage">' + (b.stale ? 'silent ' + age(b.ageMin) : age(b.ageMin)) + '</span></div>'
+        + (b.note ? '<div class="botnote">' + b.note + '</div>' : '')
+        + (kv ? '<table>' + kv + '</table>' : '')
+        + '</div>';
+    }).join('');
   }
 
   function renderSocial(el, d){
@@ -795,7 +822,7 @@ const DASH = (() => {
   // missing source has at some point actually meant "the function is older
   // than the page", which is a different problem with a different fix and was
   // costing a round trip each time. Now the page simply checks.
-  const EXPECTS_BUILD = 'fn-13 calendar';
+  const EXPECTS_BUILD = 'fn-14 bots';
 
   let PERIOD = 'week';
   let refreshing = false;
