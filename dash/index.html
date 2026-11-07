@@ -209,6 +209,29 @@
   .job:hover .marksent{opacity:1;}
   .marksent:hover{color:var(--good-ink);border-color:var(--good);}
   .marksent:disabled{opacity:.4;cursor:default;color:var(--text-3);border-color:var(--line-soft);}
+  .jbtns{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px;}
+  .jbtns .marksent{margin-top:0;}
+  /* The composer is the last thing between a draft and a real customer, so
+     it is deliberately not a cramped inline affair: full width, real text
+     sizes, and the recipient repeated on the button that sends it. */
+  .compose{margin-top:10px;padding:11px;border:1px solid var(--line-soft);
+    border-radius:8px;background:rgba(255,255,255,.015);}
+  .compose input,.compose textarea{width:100%;box-sizing:border-box;
+    background:var(--char);color:var(--text);border:1px solid var(--line-soft);
+    border-radius:6px;padding:8px 9px;font:inherit;font-size:12.5px;line-height:1.55;}
+  .compose input{font-weight:600;margin-bottom:7px;}
+  .compose textarea{resize:vertical;min-height:150px;white-space:pre-wrap;}
+  .compose input:focus,.compose textarea:focus{outline:none;border-color:var(--blue);}
+  .crow{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .csend{padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit;font-size:11.5px;
+    font-weight:700;color:#fff;background:var(--blue);border:1px solid var(--blue);}
+  .csend:disabled{opacity:.5;cursor:default;}
+  .ccancel{padding:6px 10px;border-radius:6px;cursor:pointer;font:inherit;font-size:11.5px;
+    font-weight:600;color:var(--text-3);background:transparent;border:1px solid var(--line-soft);}
+  .cmsg{font-size:11.5px;}
+  .cmsg.bad{color:var(--bad-ink);}
+  .cmsg.good{color:var(--good-ink);}
+  .cnote{font-size:11px;color:var(--text-3);margin-top:7px;line-height:1.5;}
   .jwarn{font-size:12px;line-height:1.5;color:var(--warn-ink);padding-bottom:11px;}
   .jblind{font-size:11.5px;line-height:1.5;color:var(--text-3);
     margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);}
@@ -436,6 +459,29 @@ const DASH = (() => {
     return { ok:true };
   }
 
+  /* Approving one. This is the only call in the page that can cause an email
+     to reach a customer, and it is reachable only from a button sitting under
+     the text itself. It does not send: it hands an approved row to the queue,
+     and the GitHub Action sends within the quarter hour. */
+  async function queueEmail(job){
+    if (SAMPLE) return { ok:false, error:'Sample mode. Nothing is queued and nothing is sent.' };
+    const { data:{ session } } = await sb.auth.getSession();
+    if (!session) return { ok:false, error:'Signed out.' };
+    const res = await fetch(CONFIG.supabaseUrl + '/functions/v1/dash-metrics', {
+      method: 'POST',
+      headers: {
+        apikey: CONFIG.supabaseAnonKey,
+        Authorization: 'Bearer ' + session.access_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(Object.assign({ action:'queue-email' }, job))
+    });
+    let out = null;
+    try { out = await res.json(); } catch (e) { out = null; }
+    if (!res.ok) return { ok:false, error:(out && (out.error || out.detail)) || ('HTTP ' + res.status) };
+    return { ok:true, already: !!(out && out.already) };
+  }
+
   async function fetchPanels(){
     if (SAMPLE) return { ok:true, panels:null };
     const { data:{ session } } = await sb.auth.getSession();
@@ -490,16 +536,24 @@ const DASH = (() => {
       jobs:[
       {email:'t.b@example.com', name:'Tomas Brandt', kind:'cancelled', ref:'sub_4',
        title:'Cancelled a paid plan', overdue:true, due:new Date(Date.now() + (-5) * 86400000).toISOString(),
-       why:'Was paying and stopped. The one case where you know the product worked for them.'},
+       why:'Was paying and stopped. The one case where you know the product worked for them.',
+       subject:'Sorry to see you go',
+       body:'Hi Tomas,\n\nYour Killzonda subscription has ended. You were paying for a while, so if something changed, whether that is the product, your trading or the price, I would genuinely like to hear it.\n\nOne line is plenty.\n\nMike\nKillzonda'},
       {email:'r.okafor@example.com', name:'Rachel Okafor', kind:'payment-failed', ref:'sub_1',
        title:'Payment failed', overdue:true, due:new Date(Date.now() + (-2) * 86400000).toISOString(),
-       why:'Stripe has it as past_due and keeps retrying. Most are expired cards, which a retry cannot fix and an email can.'},
+       why:'Stripe has it as past_due and keeps retrying. Most are expired cards, which a retry cannot fix and an email can.',
+       subject:'Your Killzonda payment did not go through',
+       body:'Hi Rachel,\n\nThe last payment on your Killzonda subscription did not go through. Nine times out of ten that is a card that has expired or been replaced rather than anything wrong at your end.\n\nYou can update it from your account page and the next retry will pick it up. Nothing is lost in the meantime.\n\nIf it is not the card, reply and tell me what you are seeing.\n\nMike\nKillzonda'},
       {email:'dan@example.com', name:null, kind:'trial-ending', ref:'sub_2',
        title:'Trial ends in 14 hours', overdue:false, due:new Date(Date.now() + (0.6) * 86400000).toISOString(),
-       why:'The card has not been charged yet. This is the one deadline here that closes on its own.'},
+       why:'The card has not been charged yet. This is the one deadline here that closes on its own.',
+       subject:'Your Killzonda trial ends soon',
+       body:'Hi there,\n\nYour seven day Killzonda trial is nearly up. If you want to keep going there is nothing to do, the subscription carries on by itself.\n\nIf it has not been useful, cancel from your account page and you will not be charged. No hard feelings either way.\n\nIf something did not work or you got stuck on it, reply and tell me. I read these myself.\n\nMike\nKillzonda'},
       {email:'m.feld@example.com', name:'Marcus Feld', kind:'trial-ending', ref:'sub_3',
        title:'Trial ends in 2 days', overdue:false, due:new Date(Date.now() + (1.8) * 86400000).toISOString(),
-       why:'The card has not been charged yet. This is the one deadline here that closes on its own.'}
+       why:'The card has not been charged yet. This is the one deadline here that closes on its own.',
+       subject:'Your Killzonda trial ends soon',
+       body:'Hi Marcus,\n\nYour seven day Killzonda trial is nearly up. If you want to keep going there is nothing to do, the subscription carries on by itself.\n\nIf it has not been useful, cancel from your account page and you will not be charged. No hard feelings either way.\n\nIf something did not work or you got stuck on it, reply and tell me. I read these myself.\n\nMike\nKillzonda'}
     ]},
     cal: { events:[
       {summary:'Market open, review overnight', start:new Date(new Date().setHours(9,30,0,0)).toISOString(), allDay:false},
@@ -712,7 +766,12 @@ const DASH = (() => {
     'cancelled':      'calm'
   };
 
+  // The rows as last rendered, so a composer can find its own draft text
+  // without stuffing a whole email into a data attribute.
+  let OUTBOX_JOBS = [];
+
   function renderOutbox(el, d){
+    OUTBOX_JOBS = d.jobs;
     const late = d.jobs.filter(j => j.overdue).length;
     $('dot-outbox').className = 'dot ' + (late ? 'err' : d.jobs.length ? 'warn' : 'live');
 
@@ -738,17 +797,22 @@ const DASH = (() => {
       return Math.round(ms / 86400000) + 'd';
     };
 
-    el.innerHTML = head + d.jobs.map(j =>
+    el.innerHTML = head + d.jobs.map((j, i) =>
       '<div class="job ' + (j.overdue ? 'urgent' : (OUTBOX_KIND[j.kind] || 'calm')) + '"'
       + ' data-email="' + esc(j.email) + '"'
       + ' data-kind="'  + esc(j.kind)  + '"'
-      + ' data-ref="'   + esc(j.ref)   + '">'
+      + ' data-name="'  + esc(j.name || '') + '"'
+      + ' data-ref="'   + esc(j.ref)   + '"'
+      + ' data-idx="'   + i + '">'
       + '<div class="jn">' + stamp(j) + '</div>'
       + '<div><div class="jt">' + esc(j.title) + '</div>'
       + '<div class="jwho">' + esc(j.name || j.email)
         + (j.name ? ' <span class="dim">' + esc(j.email) + '</span>' : '') + '</div>'
       + '<div class="jw">' + esc(j.why) + '</div>'
-      + (d.canMark ? '<button class="marksent" type="button">Mark as sent</button>' : '')
+      + (d.canMark ? '<div class="jbtns">'
+          + '<button class="marksent" type="button" data-act="review">Review &amp; send</button>'
+          + '<button class="marksent" type="button" data-act="manual">I sent it myself</button>'
+          + '</div>' : '')
       + '</div></div>').join('') + foot;
   }
 
@@ -891,7 +955,7 @@ const DASH = (() => {
   // missing source has at some point actually meant "the function is older
   // than the page", which is a different problem with a different fix and was
   // costing a round trip each time. Now the page simply checks.
-  const EXPECTS_BUILD = 'fn-15 outbox';
+  const EXPECTS_BUILD = 'fn-16 queue';
 
   let PERIOD = 'week';
   let refreshing = false;
@@ -1028,22 +1092,85 @@ const DASH = (() => {
     // Delegated, because the rows are rebuilt on every refresh and listeners
     // bound to them would be rebound every thirty seconds.
     $('p-outbox').addEventListener('click', async (ev) => {
-      const btn = ev.target.closest('.marksent');
-      if (!btn) return;
-      const row = btn.closest('.job');
+      const row = ev.target.closest('.job');
       if (!row) return;
+
+      // --- cancel the composer --------------------------------------------
+      if (ev.target.closest('.ccancel')){
+        const c = row.querySelector('.compose');
+        if (c) c.remove();
+        const r = row.querySelector('[data-act="review"]');
+        if (r) r.disabled = false;
+        return;
+      }
+
+      // --- approve it ------------------------------------------------------
+      if (ev.target.closest('.csend')){
+        const box = row.querySelector('.compose');
+        const btn = box.querySelector('.csend');
+        const msg = box.querySelector('.cmsg');
+        btn.disabled = true;
+        msg.className = 'cmsg';
+        msg.textContent = 'Queueing\u2026';
+        const r = await queueEmail({
+          email:   row.dataset.email,
+          name:    row.dataset.name || null,
+          kind:    row.dataset.kind,
+          ref:     row.dataset.ref,
+          subject: box.querySelector('.csubj').value,
+          body:    box.querySelector('.cbody').value
+        });
+        if (r.ok){
+          msg.className = 'cmsg good';
+          msg.textContent = r.already ? 'Already queued.' : 'Queued. It goes out within 15 minutes.';
+          row.style.opacity = '.35';
+          setTimeout(refresh, 1200);
+        } else {
+          btn.disabled = false;
+          msg.className = 'cmsg bad';
+          msg.textContent = r.error;
+        }
+        return;
+      }
+
+      // --- open the draft --------------------------------------------------
+      const review = ev.target.closest('[data-act="review"]');
+      if (review){
+        if (row.querySelector('.compose')) return;
+        const j = OUTBOX_JOBS[Number(row.dataset.idx)];
+        if (!j) return;
+        review.disabled = true;
+        const box = document.createElement('div');
+        box.className = 'compose';
+        box.innerHTML =
+          '<input class="csubj" type="text" value="' + esc(j.subject || '') + '">'
+          + '<textarea class="cbody" spellcheck="true"></textarea>'
+          + '<div class="crow">'
+          + '<button class="csend" type="button">Send to ' + esc(j.email) + '</button>'
+          + '<button class="ccancel" type="button">Cancel</button>'
+          + '<span class="cmsg"></span></div>'
+          + '<div class="cnote">Goes out from support@killzonda.com within 15 minutes of approval. Edit anything above first; what you see here is what is sent.</div>';
+        // value rather than innerHTML: the body is plain text and should stay
+        // plain text all the way to the mail server.
+        box.querySelector('.cbody').value = j.body || '';
+        row.querySelector('div:last-child').appendChild(box);
+        box.querySelector('.cbody').focus();
+        return;
+      }
+
+      // --- Mike sent it himself --------------------------------------------
+      const btn = ev.target.closest('[data-act="manual"]');
+      if (!btn) return;
       btn.disabled = true;
       btn.textContent = 'Recording\u2026';
       const r = await markSent(row.dataset.email, row.dataset.kind, row.dataset.ref);
       if (r.ok){
-        // Fade the row rather than remove it: something vanishing under the
-        // cursor is how you end up unsure whether you clicked the right one.
         row.style.opacity = '.35';
         btn.textContent = 'Recorded';
         refresh();
       } else {
         btn.disabled = false;
-        btn.textContent = 'Mark as sent';
+        btn.textContent = 'I sent it myself';
         row.querySelector('.jw').innerHTML =
           '<span style="color:var(--bad-ink)">Not recorded. ' + esc(r.error) + '</span>';
       }

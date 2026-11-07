@@ -34,7 +34,7 @@
 // Bumped whenever this file changes. The dashboard prints it, so "did my
 // redeploy actually take" stops being something we deduce from the wording of
 // an error message and becomes something you can read off the page.
-const BUILD = "fn-15 outbox";
+const BUILD = "fn-16 queue";
 
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") ?? "").trim().toLowerCase();
 const STRIPE_KEY = Deno.env.get("STRIPE_RESTRICTED_KEY") ?? "";
@@ -551,6 +551,57 @@ type Job = {
   ref: string;
 };
 
+// The text Mike reads before he sends it. It lives here rather than in the
+// page so that the thing which composes and the thing which sends cannot
+// drift apart, and it is deliberately plain. These leave a person's own
+// support address, and marketing voice inside "your card was declined"
+// reads as a company that has stopped paying attention.
+function draft(j: Job): { subject: string; body: string } {
+  const first = j.name ? j.name.trim().split(/\s+/)[0] : "";
+  const hi = "Hi " + (first || "there") + ",";
+  const sign = "\n\nMike\nKillzonda";
+
+  switch (j.kind) {
+    case "trial-ending":
+      return {
+        subject: "Your Killzonda trial ends soon",
+        body: hi + "\n\nYour seven day Killzonda trial is nearly up. If you want to keep "
+          + "going there is nothing to do, the subscription carries on by itself.\n\n"
+          + "If it has not been useful, cancel from your account page and you will not "
+          + "be charged. No hard feelings either way.\n\n"
+          + "If something did not work or you got stuck on it, reply and tell me. I read "
+          + "these myself." + sign,
+      };
+    case "payment-failed":
+      return {
+        subject: "Your Killzonda payment did not go through",
+        body: hi + "\n\nThe last payment on your Killzonda subscription did not go "
+          + "through. Nine times out of ten that is a card that has expired or been "
+          + "replaced rather than anything wrong at your end.\n\n"
+          + "You can update it from your account page and the next retry will pick it "
+          + "up. Nothing is lost in the meantime.\n\n"
+          + "If it is not the card, reply and tell me what you are seeing." + sign,
+      };
+    case "trial-lapsed":
+      return {
+        subject: "What did not work?",
+        body: hi + "\n\nYou tried Killzonda and decided not to carry on, which is fine. "
+          + "I would like to know what missed.\n\n"
+          + "One line is plenty. Too slow, too complicated, did not do the thing you "
+          + "needed, too expensive. Whatever it was, it is useful to me.\n\n"
+          + "Thanks for giving it a go." + sign,
+      };
+    default:
+      return {
+        subject: "Sorry to see you go",
+        body: hi + "\n\nYour Killzonda subscription has ended. You were paying for a "
+          + "while, so if something changed, whether that is the product, your trading "
+          + "or the price, I would genuinely like to hear it.\n\n"
+          + "One line is plenty." + sign,
+      };
+  }
+}
+
 async function outboxPanel(): Promise<Panel> {
   if (!STRIPE_KEY) return waiting("Add STRIPE_RESTRICTED_KEY to this function's secrets.");
 
@@ -672,13 +723,19 @@ async function outboxPanel(): Promise<Panel> {
       return r.json();
     };
 
-    const [sent, excluded] = await Promise.all([
+    const [sent, queued, excluded] = await Promise.all([
       ctl("sent_log?select=customer_email,kind,ref"),
+      // Approved mail has not left yet, but it is spoken for. Leaving it in
+      // the list invites a second approval of the same email.
+      ctl("email_queue?select=customer_email,kind,ref&status=neq.failed"),
       ctl("exclusions?select=customer_email"),
     ]);
 
     const done = new Set((sent as Array<{ customer_email: string; kind: string; ref: string }>)
       .map((r) => r.kind + "|" + r.customer_email + "|" + (r.ref ?? "")));
+    for (const r of (queued as Array<{ customer_email: string; kind: string; ref: string }>)) {
+      done.add(r.kind + "|" + r.customer_email + "|" + (r.ref ?? ""));
+    }
     const skip = new Set((excluded as Array<{ customer_email: string }>)
       .map((r) => r.customer_email.trim().toLowerCase()));
 
@@ -692,12 +749,15 @@ async function outboxPanel(): Promise<Panel> {
 
   // Overdue first, then soonest. Both ends of that matter: the top of the list
   // is what is already late, and below it is what closes next.
+  // Composed after filtering, so no text is built for a row nobody will see.
+  const withText = jobs.map((j) => ({ ...j, ...draft(j) }));
+
   jobs.sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.due.localeCompare(b.due));
 
   return {
     ok: true,
     data: {
-      jobs,
+      jobs: withText,
       already,
       memory,
       canMark: control !== "",
@@ -756,16 +816,61 @@ Deno.serve(async (req) => {
           + "nowhere to record it." }, 500, origin);
       }
 
-      let body: { action?: string; email?: string; kind?: string; ref?: string; note?: string };
+      let body: { action?: string; email?: string; name?: string; kind?: string;
+                   ref?: string; note?: string; subject?: string; body?: string };
       try { body = await req.json(); }
       catch { return json({ error: "body must be JSON" }, 400, origin); }
 
-      if (body.action !== "mark-sent") {
+      const KNOWN = ["mark-sent", "queue-email"];
+      if (!KNOWN.includes(body.action ?? "")) {
         return json({ error: `unknown action: ${body.action ?? "(none)"}` }, 400, origin);
       }
       const email = (body.email ?? "").trim().toLowerCase();
       const kind = (body.kind ?? "").trim();
       if (!email || !kind) return json({ error: "email and kind are both required" }, 400, origin);
+
+      // ---- approved mail, waiting for the sender ---------------------------
+      // This is the only place a customer-bound email is ever created, and it
+      // is reached only by Mike pressing a button next to text he has read.
+      // Nothing in this function composes and queues in one step.
+      if (body.action === "queue-email") {
+        const subject = (body.subject ?? "").trim();
+        const bodyText = (body.body ?? "").trim();
+        if (!subject || !bodyText) {
+          return json({ error: "subject and body are both required" }, 400, origin);
+        }
+        const q = await fetch(SUPABASE_URL + "/rest/v1/email_queue", {
+          method: "POST",
+          headers: {
+            apikey: control,
+            Authorization: "Bearer " + control,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            customer_email: email,
+            customer_name: body.name ?? null,
+            kind,
+            ref: (body.ref ?? "").trim(),
+            subject,
+            body: bodyText,
+            status: "approved",
+          }),
+        });
+        if (!q.ok) {
+          const d = (await q.text()).slice(0, 220);
+          if (/duplicate key|already exists/i.test(d)) {
+            // Not an error worth alarming anybody with: it means this exact
+            // follow-up is already waiting to go out.
+            return json({ ok: true, already: true, email, kind }, 200, origin);
+          }
+          if (/does not exist/i.test(d)) {
+            return json({ error: "Run supabase/schema/05_email_queue.sql in nmt-control first.", detail: d }, 500, origin);
+          }
+          return json({ error: "could not queue it", detail: d }, 500, origin);
+        }
+        return json({ ok: true, email, kind }, 200, origin);
+      }
 
       // merge-duplicates so pressing it twice is not an error. Confirming
       // twice is still one email.

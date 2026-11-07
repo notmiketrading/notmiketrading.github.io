@@ -1,0 +1,69 @@
+# =============================================================================
+# Sends the follow-ups Mike has approved in the dashboard.
+#
+# It reads email_queue in nmt-control and sends whatever is sitting in
+# 'approved'. It never decides who gets an email: a row only exists there
+# because somebody read the text and pressed send.
+#
+# This lives in a GitHub Action rather than in the Supabase function because
+# Supabase documents outgoing ports 25, 465 and 587 as blocked for Edge
+# Functions. A runner has no such limit.
+#
+# Secrets this needs (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_URL        https://<ref>.supabase.co for nmt-control
+#   CONTROL_SECRET_KEY  sb_secret_... for nmt-control
+#   SMTP_USER           support@killzonda.com
+#   SMTP_PASS           that mailbox's password
+#
+# Secrets are encrypted and are not readable from a public repository, and
+# scheduled runs never expose them to forks. They are not printed by this job.
+#
+# Worth knowing: GitHub pauses scheduled workflows on a repository with no
+# activity for 60 days, and sends a warning first. Pushing anything resumes it.
+# =============================================================================
+
+name: Send approved follow-ups
+
+on:
+  schedule:
+    # Quarter-hourly. GitHub treats cron as best effort and a busy period can
+    # push a run later, so treat this as "within the hour" rather than a clock.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "List what would be sent, without sending it"
+        type: boolean
+        default: true
+
+# Two runs overlapping would both try to claim the same rows. The claim is
+# atomic so nothing would double-send, but there is no reason to race.
+concurrency:
+  group: send-followups
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install nodemailer
+        run: npm install --no-save nodemailer@6.9.16
+
+      - name: Send
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          CONTROL_SECRET_KEY: ${{ secrets.CONTROL_SECRET_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # A manual run defaults to a dry run. The scheduled run is the one
+          # that actually sends, and it is the one a person has already
+          # approved every row for.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        run: node tools/send-followups.mjs
