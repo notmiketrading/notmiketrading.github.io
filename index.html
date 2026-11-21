@@ -453,11 +453,15 @@
 
           <!-- Formspree discards any submission that arrives with _gotcha filled.
                People never see it; the scripts that fill every input on a page do.
+               The label is deliberately not a real field name: Chrome ignores
+               autocomplete="off" for labels it recognises, and this was called
+               "Website", which it would happily autofill. A filled honeypot means
+               a real enquiry silently classed as spam, so it must never happen.
                Checked at their end, not here, so there is no way for this to
                wrongly swallow a real enquiry. -->
           <div class="w-pot" aria-hidden="true">
-            <label for="wSite">Website</label>
-            <input id="wSite" name="_gotcha" type="text" tabindex="-1" autocomplete="off">
+            <label for="wHp">Leave this field empty</label>
+            <input id="wHp" name="_gotcha" type="text" tabindex="-1" autocomplete="off">
           </div>
           <input type="hidden" name="_subject" value="notmiketrading.com: new enquiry">
 
