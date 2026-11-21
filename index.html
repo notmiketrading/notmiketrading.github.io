@@ -274,6 +274,71 @@
   .arw svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 
   /* ---------- colophon ---------- */
+  /* ---- work together -------------------------------------------------
+     A link page should go on reading as a link page, so this stays one
+     closed row until somebody wants it. Everything else here offers; this
+     is the only thing that asks, and asking belongs after the decision to
+     talk, not on sight. Same height and radius as a link row so it sits in
+     the rhythm rather than announcing itself as a form. */
+  .work{margin-top:14px;}
+  .w-toggle{
+    width:100%;display:flex;align-items:center;gap:14px;
+    height:78px;padding:0 12px;border-radius:12px;
+    background:transparent;border:0;cursor:pointer;text-align:left;
+    font:inherit;color:var(--text);
+    transition:background-color 220ms var(--ease);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .w-toggle:hover{background-color:rgba(255,255,255,0.035);}
+  .w-meta{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-width:0;}
+  .w-nm{font-family:var(--tight);font-size:16px;font-weight:650;letter-spacing:-0.01em;}
+  .w-ds{font-size:12.5px;color:var(--text-3);}
+  .w-chev{flex:0 0 auto;width:18px;height:18px;color:var(--text-3);
+    transition:transform 260ms var(--ease), color 220ms var(--ease);}
+  .w-chev svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round;}
+  .w-toggle:hover .w-chev{color:var(--text-2);}
+  .w-toggle[aria-expanded="true"] .w-chev{transform:rotate(180deg);}
+
+  .w-panel{padding:2px 12px 4px;}
+  .w-lab{display:block;font-family:var(--mono);font-size:10px;font-weight:600;
+    letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);margin:15px 0 7px;}
+  .w-opt{text-transform:none;letter-spacing:0.02em;opacity:.7;}
+  .w-in{
+    width:100%;box-sizing:border-box;
+    background:var(--char-2);color:var(--text);
+    border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;font:inherit;line-height:1.5;
+    /* 16px exactly, not 14. Safari on iOS zooms the whole page when a field
+       smaller than this takes focus, and then leaves it zoomed. Most of the
+       traffic here arrives from a phone bio link. */
+    font-size:16px;
+    transition:border-color 180ms var(--ease), background-color 180ms var(--ease);
+  }
+  .w-in:focus{outline:none;border-color:var(--blue);background:var(--char-3);}
+  /* :user-invalid rather than :invalid, so a field is not marked red before
+     anybody has had a chance to type in it. */
+  .w-in:user-invalid{border-color:rgba(248,81,73,0.5);}
+  .w-ta{resize:vertical;min-height:118px;}
+
+  /* Not a real field. Off-screen rather than display:none, because some bots
+     skip what is display:none and fill everything else they find. */
+  .w-pot{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;}
+
+  .w-row{display:flex;align-items:center;gap:13px;margin-top:17px;flex-wrap:wrap;}
+  .w-send{
+    padding:10px 20px;border-radius:10px;cursor:pointer;
+    font:inherit;font-size:13.5px;font-weight:700;letter-spacing:-0.01em;
+    color:#fff;background:var(--blue);border:1px solid var(--blue);
+    transition:filter 180ms var(--ease), opacity 180ms var(--ease);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .w-send:hover{filter:brightness(1.12);}
+  .w-send:disabled{opacity:.5;cursor:default;filter:none;}
+  .w-msg{font-size:12.5px;line-height:1.5;flex:1 1 170px;}
+  .w-msg.bad{color:#FF7B72;}
+  .w-msg.good{color:#56D364;}
+
   .foot{
     margin-top:46px;padding-top:20px;border-top:1px solid var(--line);
     display:flex;justify-content:center;
@@ -424,6 +489,56 @@
       </span>
     </a>
 
+    <!-- ===================== work together =====================
+         The address is not in this markup, not in the script and not in the
+         response. The form posts to Formspree, which holds the destination.
+         All that is public here is the form id, which is a letterbox rather
+         than a key: it accepts post, it does not reveal where post goes.
+
+         hidden until FORM_ENDPOINT is filled in, so this can sit here fully
+         built while the account is still being made, without ever showing a
+         live form that quietly drops what people write into it. -->
+    <section class="work rise" data-rise id="work" hidden>
+      <button class="w-toggle" type="button" id="wToggle" aria-expanded="false" aria-controls="wPanel">
+        <span class="w-meta">
+          <span class="w-nm">Work together</span>
+          <span class="w-ds">Brand and partnership enquiries</span>
+        </span>
+        <span class="w-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+      </button>
+
+      <div class="w-panel" id="wPanel" hidden>
+        <form id="wForm" novalidate>
+          <label class="w-lab" for="wName">Name</label>
+          <input class="w-in" id="wName" name="name" type="text" autocomplete="name" required maxlength="120">
+
+          <label class="w-lab" for="wEmail">Email</label>
+          <input class="w-in" id="wEmail" name="email" type="email" autocomplete="email" required maxlength="200">
+
+          <label class="w-lab" for="wCo">Company <span class="w-opt">optional</span></label>
+          <input class="w-in" id="wCo" name="company" type="text" autocomplete="organization" maxlength="120">
+
+          <label class="w-lab" for="wMsg">What do you have in mind?</label>
+          <textarea class="w-in w-ta" id="wMsg" name="message" required maxlength="4000" rows="5"></textarea>
+
+          <!-- Formspree discards any submission that arrives with _gotcha filled.
+               People never see it; the scripts that fill every input on a page do.
+               Checked at their end, not here, so there is no way for this to
+               wrongly swallow a real enquiry. -->
+          <div class="w-pot" aria-hidden="true">
+            <label for="wSite">Website</label>
+            <input id="wSite" name="_gotcha" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" name="_subject" value="notmiketrading.com: new enquiry">
+
+          <div class="w-row">
+            <button class="w-send" type="submit" id="wSend">Send</button>
+            <span class="w-msg" id="wOut" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+      </div>
+    </section>
+
     <footer class="foot rise" data-rise>
       <p>&copy; <span id="y">2026</span> notmiketrading</p>
     </footer>
@@ -455,6 +570,68 @@
     // a tab behind the current one, the page would otherwise sit blank until it was looked at.
     // Calling twice costs nothing: the class is idempotent and the delays are the same.
     setTimeout(function(){ reveal(true); }, 1200);
+  }
+
+  // ---- work together ---------------------------------------------------
+  // Paste the Formspree form id here and the section appears. Until then it
+  // stays hidden: a form that posts nowhere is worse than no form, because
+  // the person who wrote into it believes they have reached you.
+  var FORM_ENDPOINT = '';   // e.g. 'https://formspree.io/f/xxxxxxxx'
+
+  var work = document.getElementById('work');
+  if (work && FORM_ENDPOINT) {
+    work.hidden = false;
+
+    var tgl = document.getElementById('wToggle');
+    var pan = document.getElementById('wPanel');
+    var frm = document.getElementById('wForm');
+    var out = document.getElementById('wOut');
+    var snd = document.getElementById('wSend');
+
+    function say(text, cls){ out.textContent = text; out.className = 'w-msg' + (cls ? ' ' + cls : ''); }
+
+    tgl.addEventListener('click', function(){
+      var open = tgl.getAttribute('aria-expanded') === 'true';
+      tgl.setAttribute('aria-expanded', open ? 'false' : 'true');
+      pan.hidden = open;
+      if (!open) document.getElementById('wName').focus();
+    });
+
+    frm.addEventListener('submit', function(e){
+      e.preventDefault();
+      // novalidate on the form so the browser does not interrupt on the way
+      // in; the check happens here instead, once, on the way out.
+      if (!frm.checkValidity()) { frm.reportValidity(); return; }
+
+      snd.disabled = true;
+      say('Sending\u2026', '');
+
+      fetch(FORM_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: new FormData(frm)
+      }).then(function(res){
+        return res.json().catch(function(){ return null; }).then(function(body){
+          if (res.ok) {
+            frm.reset();
+            snd.textContent = 'Sent';
+            say('Thanks. That has reached me and I will come back to you.', 'good');
+            return;
+          }
+          // Whatever the service said, verbatim. Replacing a real reason with
+          // a friendly guess is how you end up debugging the wrong thing.
+          var why = (body && body.errors && body.errors.length)
+            ? body.errors.map(function(x){ return x.message; }).join(' ')
+            : 'The form service answered ' + res.status + '.';
+          snd.disabled = false;
+          say('That did not send. ' + why, 'bad');
+        });
+      }).catch(function(err){
+        snd.disabled = false;
+        say('That did not send: ' + ((err && err.message) || err)
+          + '. You can reach me through any of the links above instead.', 'bad');
+      });
+    });
   }
 
   document.getElementById('y').textContent = new Date().getFullYear();
