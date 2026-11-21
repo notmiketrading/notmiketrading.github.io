@@ -280,27 +280,57 @@
      is the only thing that asks, and asking belongs after the decision to
      talk, not on sight. Same height and radius as a link row so it sits in
      the rhythm rather than announcing itself as a form. */
-  .work{margin-top:34px;}
+  /* It was a ghost row: no icon, no index number, sitting above five rows that
+     have both. Next to them it read as something left over rather than
+     something offered. So it gets a card of its own.
+
+     Pitched deliberately below Killzonda: a 0.20 border against its 0.38, a
+     fainter wash and no drop shadow. Killzonda is still the loudest thing on
+     the page and should be. This only has to stop looking like an afterthought.
+
+     The card wraps the toggle and the form together, so opening it fills the
+     card rather than hanging a naked form underneath a bordered button. */
+  .work{
+    margin-top:34px;border-radius:12px;overflow:hidden;
+    border:1px solid rgba(41,98,255,0.20);
+    background:linear-gradient(180deg, rgba(41,98,255,0.055), rgba(41,98,255,0.012));
+    transition:border-color 240ms var(--ease), box-shadow 240ms var(--ease);
+  }
+  .work:hover{border-color:rgba(41,98,255,0.34);box-shadow:0 0 20px rgba(41,98,255,0.06);}
   .w-toggle{
     width:100%;display:flex;align-items:center;gap:14px;
-    height:78px;padding:0 12px;border-radius:12px;
+    min-height:76px;padding:13px 16px;border-radius:12px;
     background:transparent;border:0;cursor:pointer;text-align:left;
     font:inherit;color:var(--text);
-    transition:background-color 220ms var(--ease);
     -webkit-tap-highlight-color:transparent;
   }
-  .w-toggle:hover{background-color:rgba(255,255,255,0.035);}
+
+  /* Same 44px disc as the link rows, so it reads as one of them, but tinted
+     rather than neutral, so it reads as the one that is not a link. */
+  .w-glyph{
+    flex:0 0 auto;width:44px;height:44px;border-radius:50%;
+    border:1px solid rgba(41,98,255,0.30);background:rgba(41,98,255,0.10);
+    display:grid;place-items:center;color:var(--blue-ink);
+    transition:background-color 240ms var(--ease), border-color 240ms var(--ease);
+  }
+  .w-glyph svg{
+    width:19px;height:19px;fill:none;stroke:currentColor;
+    stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;
+  }
+  .work:hover .w-glyph{background:rgba(41,98,255,0.17);border-color:rgba(41,98,255,0.46);}
   .w-meta{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-width:0;}
-  .w-nm{font-family:var(--tight);font-size:16px;font-weight:650;letter-spacing:-0.01em;}
-  .w-ds{font-size:12.5px;color:var(--text-3);}
+  /* 17px/600 and 12.5px: the same as .nm and .ds, so the heading sits level
+     with Discord and the rest rather than a size adrift from them. */
+  .w-nm{display:block;font-size:17px;font-weight:600;letter-spacing:-0.018em;line-height:1.25;}
+  .w-ds{display:block;margin-top:3px;font-size:12.5px;line-height:1.35;color:var(--text-3);}
   .w-chev{flex:0 0 auto;width:18px;height:18px;color:var(--text-3);
     transition:transform 260ms var(--ease), color 220ms var(--ease);}
   .w-chev svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round;}
-  .w-toggle:hover .w-chev{color:var(--text-2);}
+  .work:hover .w-chev{color:var(--blue-ink);}
   .w-toggle[aria-expanded="true"] .w-chev{transform:rotate(180deg);}
 
-  .w-panel{padding:2px 12px 4px;}
+  .w-panel{padding:0 16px 16px;}
   .w-lab{display:block;font-family:var(--mono);font-size:10px;font-weight:600;
     letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);margin:15px 0 7px;}
   .w-opt{text-transform:none;letter-spacing:0.02em;opacity:.7;}
@@ -430,6 +460,7 @@
          live form that quietly drops what people write into it. -->
     <section class="work rise" data-rise id="work" hidden>
       <button class="w-toggle" type="button" id="wToggle" aria-expanded="false" aria-controls="wPanel">
+        <span class="w-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.6" y="5" width="18.8" height="14" rx="2.6"/><path d="m3.6 7.2 8.4 5.9 8.4-5.9"/></svg></span>
         <span class="w-meta">
           <span class="w-nm">Work together</span>
           <span class="w-ds">Brand and partnership enquiries</span>
