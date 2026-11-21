@@ -319,10 +319,9 @@
   }
   .work:hover .w-glyph{background:rgba(41,98,255,0.17);border-color:rgba(41,98,255,0.46);}
   .w-meta{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-width:0;}
-  /* 17px/600 and 12.5px: the same as .nm and .ds, so the heading sits level
-     with Discord and the rest rather than a size adrift from them. */
+  /* 17px/600, the same as .nm, so the heading sits level with Discord and
+     the rest rather than a size adrift from them. */
   .w-nm{display:block;font-size:17px;font-weight:600;letter-spacing:-0.018em;line-height:1.25;}
-  .w-ds{display:block;margin-top:3px;font-size:12.5px;line-height:1.35;color:var(--text-3);}
   .w-chev{flex:0 0 auto;width:18px;height:18px;color:var(--text-3);
     transition:transform 260ms var(--ease), color 220ms var(--ease);}
   .w-chev svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;
@@ -463,7 +462,6 @@
         <span class="w-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.6" y="5" width="18.8" height="14" rx="2.6"/><path d="m3.6 7.2 8.4 5.9 8.4-5.9"/></svg></span>
         <span class="w-meta">
           <span class="w-nm">Work together</span>
-          <span class="w-ds">Open to brand deals</span>
         </span>
         <span class="w-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
       </button>
