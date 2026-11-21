@@ -280,7 +280,7 @@
      is the only thing that asks, and asking belongs after the decision to
      talk, not on sight. Same height and radius as a link row so it sits in
      the rhythm rather than announcing itself as a form. */
-  .work{margin-top:14px;}
+  .work{margin-top:34px;}
   .w-toggle{
     width:100%;display:flex;align-items:center;gap:14px;
     height:78px;padding:0 12px;border-radius:12px;
@@ -419,6 +419,56 @@
          and the Stripe coupon have to move with it.
          ========================================================================== -->
 
+    <!-- ===================== work together =====================
+         The address is not in this markup, not in the script and not in the
+         response. The form posts to Formspree, which holds the destination.
+         All that is public here is the form id, which is a letterbox rather
+         than a key: it accepts post, it does not reveal where post goes.
+
+         hidden until FORM_ENDPOINT is filled in, so this can sit here fully
+         built while the account is still being made, without ever showing a
+         live form that quietly drops what people write into it. -->
+    <section class="work rise" data-rise id="work" hidden>
+      <button class="w-toggle" type="button" id="wToggle" aria-expanded="false" aria-controls="wPanel">
+        <span class="w-meta">
+          <span class="w-nm">Work together</span>
+          <span class="w-ds">Brand and partnership enquiries</span>
+        </span>
+        <span class="w-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+      </button>
+
+      <div class="w-panel" id="wPanel" hidden>
+        <form id="wForm" novalidate>
+          <label class="w-lab" for="wName">Name</label>
+          <input class="w-in" id="wName" name="name" type="text" autocomplete="name" required maxlength="120">
+
+          <label class="w-lab" for="wEmail">Email</label>
+          <input class="w-in" id="wEmail" name="email" type="email" autocomplete="email" required maxlength="200">
+
+          <label class="w-lab" for="wCo">Company <span class="w-opt">optional</span></label>
+          <input class="w-in" id="wCo" name="company" type="text" autocomplete="organization" maxlength="120">
+
+          <label class="w-lab" for="wMsg">What do you have in mind?</label>
+          <textarea class="w-in w-ta" id="wMsg" name="message" required maxlength="4000" rows="5"></textarea>
+
+          <!-- Formspree discards any submission that arrives with _gotcha filled.
+               People never see it; the scripts that fill every input on a page do.
+               Checked at their end, not here, so there is no way for this to
+               wrongly swallow a real enquiry. -->
+          <div class="w-pot" aria-hidden="true">
+            <label for="wSite">Website</label>
+            <input id="wSite" name="_gotcha" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" name="_subject" value="notmiketrading.com: new enquiry">
+
+          <div class="w-row">
+            <button class="w-send" type="submit" id="wSend">Send</button>
+            <span class="w-msg" id="wOut" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+      </div>
+    </section>
+
     <!-- ===================== the index ===================== -->
     <div class="sect rise" data-rise><span>Where to find me</span></div>
 
@@ -488,56 +538,6 @@
         <span class="term-2">Then 40% off with <span class="nb">code <span class="code">NMT</span></span>. <span class="nb">$11.99/mo for 3 months</span></span>
       </span>
     </a>
-
-    <!-- ===================== work together =====================
-         The address is not in this markup, not in the script and not in the
-         response. The form posts to Formspree, which holds the destination.
-         All that is public here is the form id, which is a letterbox rather
-         than a key: it accepts post, it does not reveal where post goes.
-
-         hidden until FORM_ENDPOINT is filled in, so this can sit here fully
-         built while the account is still being made, without ever showing a
-         live form that quietly drops what people write into it. -->
-    <section class="work rise" data-rise id="work" hidden>
-      <button class="w-toggle" type="button" id="wToggle" aria-expanded="false" aria-controls="wPanel">
-        <span class="w-meta">
-          <span class="w-nm">Work together</span>
-          <span class="w-ds">Brand and partnership enquiries</span>
-        </span>
-        <span class="w-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
-      </button>
-
-      <div class="w-panel" id="wPanel" hidden>
-        <form id="wForm" novalidate>
-          <label class="w-lab" for="wName">Name</label>
-          <input class="w-in" id="wName" name="name" type="text" autocomplete="name" required maxlength="120">
-
-          <label class="w-lab" for="wEmail">Email</label>
-          <input class="w-in" id="wEmail" name="email" type="email" autocomplete="email" required maxlength="200">
-
-          <label class="w-lab" for="wCo">Company <span class="w-opt">optional</span></label>
-          <input class="w-in" id="wCo" name="company" type="text" autocomplete="organization" maxlength="120">
-
-          <label class="w-lab" for="wMsg">What do you have in mind?</label>
-          <textarea class="w-in w-ta" id="wMsg" name="message" required maxlength="4000" rows="5"></textarea>
-
-          <!-- Formspree discards any submission that arrives with _gotcha filled.
-               People never see it; the scripts that fill every input on a page do.
-               Checked at their end, not here, so there is no way for this to
-               wrongly swallow a real enquiry. -->
-          <div class="w-pot" aria-hidden="true">
-            <label for="wSite">Website</label>
-            <input id="wSite" name="_gotcha" type="text" tabindex="-1" autocomplete="off">
-          </div>
-          <input type="hidden" name="_subject" value="notmiketrading.com: new enquiry">
-
-          <div class="w-row">
-            <button class="w-send" type="submit" id="wSend">Send</button>
-            <span class="w-msg" id="wOut" role="status" aria-live="polite"></span>
-          </div>
-        </form>
-      </div>
-    </section>
 
     <footer class="foot rise" data-rise>
       <p>&copy; <span id="y">2026</span> notmiketrading</p>
